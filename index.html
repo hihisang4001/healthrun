@@ -257,6 +257,19 @@ img.emo { width: 1em; height: 1em; display: inline-block; vertical-align: -0.12e
 .stat .lbl { font-size: clamp(13px, 1vw, 17px); color: var(--ink-soft); font-weight: 700; }
 .stat .val { font-family: var(--display); font-size: clamp(26px, 2.3vw, 42px); line-height: 1.15; }
 .stat .val small { font-family: var(--body); font-size: clamp(12px, .9vw, 16px); font-weight: 700; color: var(--ink-soft); margin-left: 3px; }
+/* 오늘 카드: '신기록까지 ○바퀴', 신기록 날에는 금색 카드 + 리본 + 지나가는 빛 + 카드 위 폭죽 */
+#sTodayCard { position: relative; }
+.stat .sub { font-size: clamp(11px, .85vw, 15px); font-weight: 700; color: var(--ink-soft); min-height: 1.2em; }
+.stat .shine, .stat .ribbon, .stat .recfx { display: none; }
+.stat.rec { background: linear-gradient(135deg, #FFF1B0 0%, #FFD54A 55%, #F2B705 100%); border: 2px solid #C9971A; }
+.stat.rec .lbl, .stat.rec .sub, .stat.rec .val small { color: #6B4600; }
+.stat.rec .lbl, .stat.rec .val, .stat.rec .sub { position: relative; z-index: 1; }   /* 지나가는 빛은 글자 뒤로 */
+.stat.rec .shine { display: block; position: absolute; top: 0; left: 0; right: 0; bottom: 0; border-radius: inherit; overflow: hidden; pointer-events: none; }
+.stat.rec .shine::after { content: ''; position: absolute; top: -50%; left: -60%; width: 40%; height: 200%; background: rgba(255,255,255,.55); transform: rotate(25deg); animation: recShine 3.2s ease-in-out infinite; }
+@keyframes recShine { 0% { left: -60%; } 60%, 100% { left: 130%; } }
+.stat.rec .ribbon { display: block; position: absolute; top: -.7em; right: .6em; background: #D2412E; color: #fff; font-family: var(--display); font-size: clamp(12px, .95vw, 17px); padding: .15em .6em; border-radius: 6px; transform: rotate(4deg); box-shadow: 0 2px 0 #8E2A20; z-index: 2; }
+.stat.rec .recfx { display: block; position: absolute; left: -15%; top: -60%; width: 130%; height: 200%; pointer-events: none; image-rendering: pixelated; z-index: 3; }
+@media (prefers-reduced-motion: reduce) { .stat.rec .shine::after { animation: none; } }
 /* 지난주보다 빨라진 친구: 이름 + '지난주 → 이번 주' 칩 */
 .faster { display: flex; flex-wrap: wrap; gap: 6px 8px; }
 .faster .fchip {
@@ -303,8 +316,8 @@ img.emo { width: 1em; height: 1em; display: inline-block; vertical-align: -0.12e
 /* 이름 카드: 둥근 모서리, 글자에 딱 맞는 작은 여백 (위: 이름, 아래: 기록) */
 .ncard { display: inline-block; box-sizing: border-box; border: 2px solid #9CCFAE; border-radius: 9px; padding: .3em .6em .35em; text-align: center; vertical-align: top; }
 .ncard .in { display: flex; flex-direction: column; align-items: center; gap: .15em; }
-.ncard .nm { font-family: var(--display); font-size: clamp(15px, 1.25vw, 22px); line-height: 1.1; color: #111; white-space: nowrap; }
-.ncard .tl { font-weight: 900; font-size: clamp(11px, .85vw, 15px); line-height: 1; white-space: nowrap; }
+.ncard .nm { font-family: var(--body); font-weight: 700; font-size: clamp(15px, 1.25vw, 22px); line-height: 1.15; color: #111; white-space: nowrap; }   /* 굵은 제목 글꼴 대신 본문 글꼴 700으로 조금 얇게 */
+.ncard .tl { font-weight: 500; font-size: clamp(11px, .85vw, 15px); line-height: 1; white-space: nowrap; }
 .faster.ncards { display: flex; flex-wrap: wrap; gap: 6px; }
 .toplist .v { white-space: nowrap; }
 .toplist .g { color: var(--ink-soft); font-size: .78em; font-weight: 500; margin-left: 4px; }
@@ -356,6 +369,8 @@ body.tv.tv-scroll .gameboard { flex: none; }
   body.tv .stat .lbl { font-size: 2.6vw; }
   body.tv .stat .val { font-size: 6.6vw; }
   body.tv .stat .val small { font-size: 2.4vw; }
+  body.tv .stat .sub { font-size: 1.9vw; }
+  body.tv .stat.rec .ribbon { font-size: 2.2vw; }
   body.tv .kmcard { padding: 1.6vw 3.2vw; border-radius: 2.8vw; }
   body.tv .kmcard .q { font-size: 3.3vw; }
   body.tv .kmcard .a { font-size: 7.4vw; }
@@ -713,7 +728,7 @@ tr:last-child td { border-bottom: 0; }
 
       <aside class="side">
         <div class="side-stats">
-          <div class="stat"><div class="lbl">오늘</div><div class="val num" id="sToday">0<small>바퀴</small></div></div>
+          <div class="stat" id="sTodayCard"><span class="shine" aria-hidden="true"></span><span class="ribbon">신기록!</span><div class="lbl">오늘</div><div class="val num" id="sToday">0<small>바퀴</small></div><div class="sub" id="sTodaySub"></div><canvas class="recfx" id="sRecFx" aria-hidden="true"></canvas></div>
           <div class="stat"><div class="lbl">이번 주</div><div class="val num" id="sWeek">0<small>바퀴</small></div></div>
           <div class="stat"><div class="lbl">지금까지</div><div class="val num" id="sTotal">0<small>바퀴</small></div></div>
         </div>
@@ -730,7 +745,7 @@ tr:last-child td { border-bottom: 0; }
           <ol class="toplist" id="sTop"></ol>
         </div>
         <div class="side-card faster-card">
-          <!-- 칭찬 블록: 빨라진 친구 → 이정표 → 내 기록 깨기 → 학교 신기록, 10초마다 번갈아 (내용 없는 블록은 건너뜀) -->
+          <!-- 칭찬 블록: 오늘 더 빨리 (판이 여럿이면 10초마다 번갈아 (내용 없는 블록은 건너뜀) -->
           <div class="praise" id="sPraise"></div>
           <div class="pdots" id="sPraiseDots" aria-hidden="true"></div>
         </div>
@@ -928,7 +943,7 @@ window.NB_LIBS = (function () {
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
   var MILESTONE_M = 10000;
-  var APP_VER = '54';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '64';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -1501,6 +1516,7 @@ window.NB_LIBS = (function () {
     Object.keys(per).forEach(function (k) { total += per[k].m; week += per[k].weekM; today += per[k].todayM; });
 
     $('sToday').innerHTML = lapsTxt(today / trackM) + '<small>바퀴</small>';
+    try { renderRecord((d.praise || {}).schoolBest, today, trackM); } catch (e) { window.nbShowErr('신기록', e); }
     $('sWeek').innerHTML = lapsTxt(week / trackM) + '<small>바퀴</small>';
     $('sTotal').innerHTML = lapsTxt(total / trackM) + '<small>바퀴</small>';
     $('sKm').innerHTML = (total / 1000).toLocaleString('ko-KR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '<small>km</small>';
@@ -2996,43 +3012,19 @@ window.NB_LIBS = (function () {
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(relayout);
 
   /**
-   * 칭찬 블록 (학생용 현황판에서 번갈아 보여 줌). 학생 화면(Index.html)의 미리보기 계산과 똑같이 맞춘다.
-   *  milestones: 이번 주에 누적 5km·10km·15km…를 새로 넘은 학생 [{id, km}]
-   *  records:    앞서 3번 이상 달린 학생 중, 이번 주에 자기 하루 최다 바퀴를 넘은 학생 [{id, laps}]
-   *  schoolRec:  오늘 학교 전체 바퀴가 지금까지 하루 최고를 넘었으면 {laps, prevLaps}, 아니면 null
+   * 학교 하루 최고 기록 (맨 위 '오늘' 카드의 신기록 효과에 씀). 학생 화면(Index.html)의 미리보기 계산과 똑같이 맞춘다.
+   *  schoolBest: 오늘을 뺀 날 중 학교 전체가 가장 많이 달린 날 {m, date}. 달린 날이 3일보다 적으면 null
    */
   function praise_(log, weekStart, today, trackM) {
-    var day = {}, tot = {}, prev = {}, school = {};
-    log.forEach(function (r) {
-      var d = day[r.id] || (day[r.id] = {});
-      d[r.date] = (d[r.date] || 0) + r.m;
-      tot[r.id] = (tot[r.id] || 0) + r.m;
-      if (r.date < weekStart) prev[r.id] = (prev[r.id] || 0) + r.m;
-      school[r.date] = (school[r.date] || 0) + r.m;
+    var school = {};
+    log.forEach(function (r) { school[r.date] = (school[r.date] || 0) + r.m; });
+    var best = null, n = 0;
+    Object.keys(school).forEach(function (dt) {
+      if (dt >= today || !(school[dt] > 0)) return;
+      n++;
+      if (!best || school[dt] > best.m) best = { m: school[dt], date: dt };
     });
-    var STEP = 5000, milestones = [], records = [];
-    Object.keys(tot).forEach(function (id) {
-      var a = Math.floor((prev[id] || 0) / STEP), b = Math.floor(tot[id] / STEP);
-      if (b > a) milestones.push({ id: id, km: b * STEP / 1000 });
-      var before = [], wmax = 0;
-      Object.keys(day[id]).forEach(function (dt) {
-        var m = day[id][dt];
-        if (dt < weekStart) { if (m > 0) before.push(m); }
-        else if (m > wmax) wmax = m;
-      });
-      if (before.length >= 3) {
-        var pmax = Math.max.apply(null, before);
-        if (wmax > pmax) records.push({ id: id, laps: Math.round(wmax / trackM) });
-      }
-    });
-    milestones.sort(function (x, y) { return y.km - x.km; });
-    records.sort(function (x, y) { return y.laps - x.laps; });
-    var prior = Object.keys(school).filter(function (dt) { return dt < today && school[dt] > 0; }).map(function (dt) { return school[dt]; });
-    var schoolRec = null;
-    if (prior.length >= 3 && (school[today] || 0) > Math.max.apply(null, prior)) {
-      schoolRec = { laps: Math.round(school[today] / trackM), prevLaps: Math.round(Math.max.apply(null, prior) / trackM) };
-    }
-    return { milestones: milestones, records: records, schoolRec: schoolRec };
+    return { schoolBest: n >= 3 ? best : null };
   }
 
   /* ── 지난주보다 빨라진 친구 (지난주 가장 빠른 바퀴보다 이번 주 가장 빠른 바퀴가 빠른 학생) ── */
@@ -3050,6 +3042,52 @@ window.NB_LIBS = (function () {
     return '<span class="ncard" style="background:' + lightCol(c, .8) + ';border-color:' + c + '"><span class="in">' +
       '<span class="nm">' + esc(p.name) + '</span>' + (tail ? '<span class="tl" style="color:' + lightCol(c, -.3) + '">' + esc(tail) + '</span>' : '') + '</span></span>';
   }
+  /* ── 오늘 카드의 학교 신기록 ──
+     오늘 기록이 있으면 '신기록까지 ○바퀴', 학교 하루 최고를 넘으면 그날 하루 종일 금색 카드 + 리본,
+     카드 위 도트 폭죽 3초는 넘는 순간과 그날 15분마다 */
+  var recBurstAt = 0, recWas = null;
+  function renderRecord(best, todayM, trackM) {
+    var card = $('sTodayCard'), sub = $('sTodaySub');
+    var isRec = !!(best && todayM > best.m);
+    card.classList.toggle('rec', isRec);
+    if (!best || todayM <= 0) sub.textContent = '';
+    else if (isRec) sub.textContent = '이전 최고 ' + lapsTxt(best.m / trackM) + '바퀴';
+    else sub.textContent = '신기록까지 ' + Math.max(1, Math.ceil((best.m - todayM) / trackM + 1e-9)) + '바퀴';
+    var now = Date.now();
+    if (isRec && (recWas === false || now - recBurstAt >= 15 * 60000)) { recBurstAt = now; cardBurst(); }
+    recWas = isRec;
+  }
+  // 카드 위 도트 폭죽 (작은 판에 그리고 크게 키움)
+  function cardBurst() {
+    var cv = $('sRecFx'); if (!cv || !cv.getBoundingClientRect) return;
+    var r = cv.getBoundingClientRect(); if (!r.width) return;
+    var P = Math.max(3, Math.round(r.width / 90)), W = Math.ceil(r.width / P), H = Math.ceil(r.height / P);
+    cv.width = W; cv.height = H;
+    var x = cv.getContext('2d'), COLS = ['#D2412E', '#E8742A', '#FFFFFF', '#22874E', '#2D6CC8', '#7B4FC2', '#FF8FB1'];
+    var bits = [], t0 = performance.now();
+    [[.3, .45], [.7, .4], [.5, .35]].forEach(function (c, k) {
+      for (var i = 0; i < 26; i++) {
+        var a = i / 26 * Math.PI * 2, sp = .5 + Math.random() * .7;
+        bits.push({ x: W * c[0], y: H * c[1], vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - .2, c: COLS[(i + k) % COLS.length], d: k * 280 });
+      }
+    });
+    (function tick(now) {
+      var t = now - t0;
+      x.clearRect(0, 0, W, H);
+      if (t > 3000) return;
+      bits.forEach(function (b) {
+        if (t < b.d) return;
+        b.vy += .02; b.vx *= .985; b.x += b.vx; b.y += b.vy;
+        x.globalAlpha = t > 2400 ? Math.max(0, (3000 - t) / 600) : 1;
+        x.fillStyle = b.c; x.fillRect(Math.round(b.x), Math.round(b.y), 1, 1);
+      });
+      x.globalAlpha = 1;
+      requestAnimationFrame(tick);
+    })(t0);
+  }
+  window.nbRecordTest = function (on) {   // 미리보기에서 시험: nbRecordTest(true) → 신기록 모습 + 폭죽, nbRecordTest(false) → 신기록까지
+    renderRecord({ m: on ? 25600 : 30000, date: '' }, 26880, 320); if (on) cardBurst();
+  };
   function renderPraise(d, roster) {
     var byId = {}; (roster || []).forEach(function (p) { byId[p.id] = p; });
     var pr = d.praise || {}, chips = function (list, tail) {
@@ -3062,13 +3100,10 @@ window.NB_LIBS = (function () {
     };
     var has = function (list) { return (list || []).some(function (f) { return byId[f.id]; }); };
     var panes = [];
-    // 빨라진 친구: 이름 + 몇 초 빨라졌는지 (없으면 응원 문구), 항상 한 판
+    // 지난주보다 오늘 더 빨리: 이름 + 몇 초 빨라졌는지 (오늘 해당 친구가 없으면 건너뜀)
     var fasterTxt = function (f) { var s = Math.round((f.last || 0) - (f.now || 0)); if (s < 1) return ''; return (s >= 60 ? Math.floor(s / 60) + '분 ' + (s % 60 ? s % 60 + '초' : '') : s + '초').trim() + ' 빨라짐'; };
-    panes.push('<h3>지난주보다 빨라진 친구</h3>' + (has(d.faster) ? chips(d.faster, fasterTxt) : '<div class="faster"><span class="none">이번 주에 더 빨라질 친구는 누구일까?</span></div>'));
-    if (has(pr.milestones)) panes.push('<h3>' + emo('🏅') + ' 지금까지 이만큼 달렸어요! <small>5km를 넘을 때마다 이름이 나와요</small></h3>' + chips(pr.milestones, function (f) { return f.km + 'km'; }));
-    if (has(pr.records)) panes.push('<h3>' + emo('💪') + ' 내 기록을 깬 친구</h3>' + chips(pr.records, function (f) { return f.laps + '바퀴'; }));
-    if (pr.schoolRec) panes.push('<h3>' + emo('🎉') + ' 우리 학교 신기록!</h3><div class="rec">오늘 우리 학교가 <b>' + pr.schoolRec.laps.toLocaleString('ko-KR') +
-      '</b>바퀴를 달렸어요! 지금까지 하루 최고 ' + pr.schoolRec.prevLaps.toLocaleString('ko-KR') + '바퀴를 넘었어요.</div>');
+    if (has(d.faster)) panes.push('<h3>' + emo('⚡') + ' 지난주보다 오늘 더 빨리 달렸어요</h3>' + chips(d.faster, fasterTxt));
+    if (!panes.length) panes.push('<h3>' + emo('🌟') + ' 오늘의 칭찬</h3><div class="faster"><span class="none">오늘 누가 지난주보다 더 빨리 달릴까?</span></div>');
     $('sPraise').innerHTML = panes.map(function (h, i) { return '<div class="pane' + (i === praiseIdx % panes.length ? ' on' : '') + '">' + h + '</div>'; }).join('');
     $('sPraiseDots').innerHTML = panes.length > 1 ? panes.map(function (h, i) { return '<i' + (i === praiseIdx % panes.length ? ' class="on"' : '') + '></i>'; }).join('') : '';
   }
@@ -3672,7 +3707,7 @@ window.NB_LIBS = (function () {
         // 지난주보다 빨라진 친구 (서버 getBoard와 같은 계산)
         var lws = dstr(new Date(now.getTime() - (dow + 7) * 86400000)), best = {}, L = lapTimes();
         Object.keys(L).forEach(function (date) {
-          var slot = date >= ws ? 'now' : date >= lws ? 'last' : null; if (!slot) return;
+          var slot = date === td ? 'now' : (date >= lws && date < ws) ? 'last' : null; if (!slot) return;
           Object.keys(L[date]).forEach(function (id) {
             L[date][id].forEach(function (l) {
               var sec = l[1] ? l[0] * settings.trackM / settings.gymM : l[0], b = best[id] || (best[id] = {});
