@@ -180,9 +180,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--turf); outline-
 .goal-bar .bar { position: relative; height: clamp(16px, 1.5vw, 26px); background: rgba(255,255,255,.25); border-radius: 999px; }
 .goal-bar .bar i { position: absolute; top: 0; bottom: 0; left: 0; background: #FFE27A; border-radius: 999px; }
 /* 🏃 그림은 왼쪽을 보고 있어서, 오른쪽으로 갈 때는 좌우를 뒤집는다 */
-.goal-bar .runner { position: absolute; top: 50%; transform: translate(-39%, -84%); font-size: clamp(28px, 2.6vw, 46px); line-height: 1; }
+.goal-bar .runner { position: absolute; top: 50%; transform: translate(-39%, -90%); font-size: clamp(28px, 2.6vw, 46px); line-height: 1; }
 /* 강아지 그림은 모자·깃발 자리까지 여백이 있어서(31×19칸) 조금 넓게 */
-.dogimg { display: block; width: 2.5em; height: auto; image-rendering: pixelated; }
+.dogimg { display: block; width: 5em; height: auto; image-rendering: pixelated; }   /* 초코를 크게 (예전 2.5em의 2배) */
 
 /* 전국 일주: 왼쪽 도트 지도 + 오른쪽 구간 게이지 (좁으면 위아래) */
 .trip { display: flex; gap: 16px; align-items: stretch; min-height: 0; }
@@ -265,6 +265,16 @@ img.emo { width: 1em; height: 1em; display: inline-block; vertical-align: -0.12e
 }
 .faster .fchip small { font-weight: 700; color: #1E6B3A; font-size: .78em; }
 .faster .none { color: var(--ink-soft); font-weight: 700; font-size: clamp(14px, 1.1vw, 19px); }
+/* 칭찬 블록: 모든 판을 같은 칸에 겹쳐 두고 하나만 보인다 (가장 큰 판 높이로 고정돼 지도가 흔들리지 않음) */
+.praise { display: grid; }
+.praise .pane { grid-area: 1 / 1; visibility: hidden; opacity: 0; transition: opacity .5s; }
+.praise .pane.on { visibility: visible; opacity: 1; }
+.praise .pane h3 { margin-top: 0; }
+.praise .rec { font-weight: 900; font-size: clamp(15px, 1.2vw, 21px); line-height: 1.5; }
+.praise .rec b { font-family: var(--display); color: var(--accent, #C4432B); font-size: 1.5em; }
+.pdots { display: flex; gap: 6px; justify-content: flex-end; margin-top: 6px; }
+.pdots i { width: 8px; height: 8px; border-radius: 50%; background: #D7DDD3; }
+.pdots i.on { background: #2E7D4F; }
 .kmcard {
   background: var(--track); color: #fff; border-radius: 20px; padding: 12px 18px;
   display: flex; align-items: center; justify-content: space-between; gap: 6px 14px; flex-wrap: wrap;
@@ -290,6 +300,12 @@ img.emo { width: 1em; height: 1em; display: inline-block; vertical-align: -0.12e
 }
 .toplist .p { font-family: var(--display); color: var(--track); }
 .toplist .n { font-weight: 900; word-break: keep-all; line-height: 1.35; }
+/* 이름 카드: 둥근 모서리, 글자에 딱 맞는 작은 여백 (위: 이름, 아래: 기록) */
+.ncard { display: inline-block; box-sizing: border-box; border: 2px solid #9CCFAE; border-radius: 9px; padding: .3em .6em .35em; text-align: center; vertical-align: top; }
+.ncard .in { display: flex; flex-direction: column; align-items: center; gap: .15em; }
+.ncard .nm { font-family: var(--display); font-size: clamp(15px, 1.25vw, 22px); line-height: 1.1; color: #111; white-space: nowrap; }
+.ncard .tl { font-weight: 900; font-size: clamp(11px, .85vw, 15px); line-height: 1; white-space: nowrap; }
+.faster.ncards { display: flex; flex-wrap: wrap; gap: 6px; }
 .toplist .v { white-space: nowrap; }
 .toplist .g { color: var(--ink-soft); font-size: .78em; font-weight: 500; margin-left: 4px; }
 .toplist .v { font-weight: 700; }
@@ -328,6 +344,12 @@ body.tv.tv-scroll .gameboard { flex: none; }
   body.tv .faster .fchip { font-size: 1.9vw; }
   body.tv .faster { align-items: center; }
   body.tv .faster .none { font-size: 2.2vw; }
+  body.tv .praise .rec { font-size: 2.4vw; }
+  body.tv .faster.ncards { gap: 1vw; }
+  body.tv .ncard { border-width: .3vw; border-radius: 1vw; }
+  body.tv .ncard .nm { font-size: 2.8vw; }
+  body.tv .ncard .tl { font-size: 1.8vw; }
+  body.tv .pdots i { width: 1vw; height: 1vw; }
 
   body.tv .side-stats { gap: 1.6vw; }
   body.tv .stat { padding: 1.6vw 2.4vw; border-radius: 2.6vw; }
@@ -708,8 +730,9 @@ tr:last-child td { border-bottom: 0; }
           <ol class="toplist" id="sTop"></ol>
         </div>
         <div class="side-card faster-card">
-          <h3>지난주보다 빨라진 친구</h3>
-          <div class="faster" id="sFaster"></div>
+          <!-- 칭찬 블록: 빨라진 친구 → 이정표 → 내 기록 깨기 → 학교 신기록, 10초마다 번갈아 (내용 없는 블록은 건너뜀) -->
+          <div class="praise" id="sPraise"></div>
+          <div class="pdots" id="sPraiseDots" aria-hidden="true"></div>
         </div>
         <div class="updated" id="sUpdated"></div>
       </aside>
@@ -905,7 +928,7 @@ window.NB_LIBS = (function () {
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
   var MILESTONE_M = 10000;
-  var APP_VER = '43';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '54';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -1486,7 +1509,7 @@ window.NB_LIBS = (function () {
 
     // 한 부분이 오류가 나도 나머지는 그려지게 (오류 내용은 화면 아래에)
     try { renderSide(roster, per, trackM); } catch (e) { window.nbShowErr('학년·친구', e); }
-    try { renderFaster(d.faster, roster); } catch (e) { window.nbShowErr('빨라진 친구', e); }
+    try { renderPraise(d, roster); } catch (e) { window.nbShowErr('칭찬 블록', e); }
     try { renderJourney(route, total / trackM, today / trackM, trackM); } catch (e) { window.nbShowErr('전국 일주', e); }
   }
 
@@ -1578,7 +1601,7 @@ window.NB_LIBS = (function () {
     $('celDog').src = urls[0];
     box.classList.remove('out');
     box.hidden = false;
-    startConfetti(function () { f = 1 - f; $('celDog').src = urls[f]; });
+    startConfetti(function () { f = (f + 1) % urls.length; $('celDog').src = urls[f]; });
   }
   function endCelebrate() {
     var box = $('celebrate');
@@ -1615,7 +1638,7 @@ window.NB_LIBS = (function () {
       if ($('celebrate').hidden) return;
       var t = now - t0;
       if (!calm && now - lastBurst > 1100) { lastBurst = now; burst(); }
-      if (now - lastBeat > 250) { lastBeat = now; onBeat(); }
+      if (now - lastBeat > 110) { lastBeat = now; onBeat(); }
       x.clearRect(0, 0, W, H);
       bits = bits.filter(function (b) {
         if (b.fw) { b.vy += .03; b.vx *= .97; b.vy *= .97; b.life--; } else { b.vy = Math.min(b.vy + .01, 1.4); b.sw += .08; }
@@ -1730,71 +1753,151 @@ window.NB_LIBS = (function () {
   }
 
   /* ════════ 도트 강아지 + 도트 지도 (그림은 모두 코드로 직접 그림) ════════ */
-  // 강아지 그림: 오른쪽을 보고 달리는 갈색 강아지 2장(다리 뻗기 / 모으기)
-  // k 테두리, b 몸, d 진한 갈색(귀·그늘), l 밝은 갈색, w 눈 흰자, e 눈동자, n 코, p 혀
-  var DOG_FRAMES = [
-    ['............kkkkk...',
-     '...........kbbbbbk..',
-     '..k.......kbbbbbbbk.',
-     '.kbk.....kdbbbbwebk.',
-     '.kbk....kddbbbbbbbbk',
-     '..kbk...kddbblbbbnnk',
-     '...kbkkkkddkbbbbbpk.',
-     '...kbbbbbddkkbbbbk..',
-     '...kbbllbbbbbbbbk...',
-     '...kdbbbbbbbbbbdk...',
-     '...kkdbkkkkkkdbbk...',
-     '..kdbk.......kdbk...',
-     '.kddk.........kdbk..',
-     '.kkk...........kkk..'],
-    ['............kkkkk...',
-     '...........kbbbbbk..',
-     '.k........kbbbbbbbk.',
-     'kbk......kdbbbbwebk.',
-     'kbk.....kddbbbbbbbbk',
-     '.kbk....kddbblbbbnnk',
-     '..kbkkkkkddkbbbbbpk.',
-     '...kbbbbbddkkbbbbk..',
-     '...kbbllbbbbbbbbk...',
-     '...kdbbbbbbbbbbdk...',
-     '...kkdbkkkkkkdbbk...',
-     '....kdbk...kdbk.....',
-     '....kddk...kddk.....',
-     '....kkkk...kkkk.....']
+  /* 초코는 지도보다 2배 촘촘한 칸(40×28)에 그린다. 화면 속 크기는 예전과 같고, 눈·옷 무늬 같은 잔무늬가 보인다.
+     달리는 그림 4장: 뻗기 → 내리기 → 모으기 → 앞발 내밀기 (뻗을 때 가장 높이 뜬다) */
+  // k 테두리, h 하이라이트, l 밝은 갈색, b 몸, s 그늘, d 귀, D 귀 그늘·발, w 눈 반짝, e 눈동자, n 코, p 혀, P 혀 그늘, r 볼
+  var BODY2 = [
+    '.........................kkkkkkk........',
+    '.......................kkhhhhllkk.......',
+    '......................khhlllbbbbbk......',
+    '....................kddddkllbbbbbbk.....',
+    '...................kdDDddklbbbbbbbbk....',
+    '...................kdDDddkbbbbweebbbk...',
+    '...................kdDDddkbbbbeeebbbbkk.',
+    '...................kdDDddkbbbbbbbllllnnk',
+    '...................kdDDddkbbbbrrbllllnnk',
+    '...................kdDDddkbbbbbbbkkkkkk.',
+    '...................kdDDddksbbbbbbkppk...',
+    '........kkkkkkkkkkkkkDdkssbbbbbbbkPk....',
+    '......kkhhhhhhhhhhhhlkksssbbbbsk........',
+    '.....khlllllllllllllllllbbbbbbbsk.......',
+    '....khlbbbbbbbbbbbbbbbbbbbbbbbbsk.......',
+    '....klbbbbhhllbbbbbbbbbbbbbbbbbsk.......',
+    '....kbbbbbllllbbbbbbbbbbbbbbbbssk.......',
+    '....kbbbbbbbbbbbbbbbbbbbbbbbbbssk.......',
+    '....ksbbbbbbbbbbbbbbbbbbbbbbbsssk.......',
+    '....kssbbbbbbbbbbbbbbbbbbbbbbsssk.......',
+    '.....ksssbbbbbbbbbbbbbbbbbbbsssk........',
+    '......ksssssssssssssssssssssssk.........',
+    '.......???????????????????????..........'   // 배 아래 줄은 다리 위치에 맞춰 만든다
   ];
-  var DOG_COL = { k: '#1E1914', b: '#8A5230', d: '#5A3119', l: '#B0703F', w: '#FFFFFF', e: '#111111', n: '#2B1A10', p: '#E8607A' };
-  var DOG_W = 20, DOG_H = 14;
-  function dogCanvas(frame, flip) {
-    var c = document.createElement('canvas'); c.width = DOG_W; c.height = DOG_H;
-    var x = c.getContext('2d');
-    DOG_FRAMES[frame].forEach(function (row, y) {
-      for (var i = 0; i < DOG_W; i++) {
-        var ch = row.charAt(i);
-        if (!DOG_COL[ch]) continue;
-        x.fillStyle = DOG_COL[ch];
-        x.fillRect(flip ? DOG_W - 1 - i : i, y, 1, 1);
+  var TAILS2 = [
+    ['..kkk...', '.khhbk..', '.kbbbk..', '..kbbbk.', '..kbbbk.', '...kbbbk', '...kbbbk', '....kbbb', '....kbbb'],   // 4~12줄
+    ['........', '........', 'kkk.....', 'khhk....', 'kbbbk...', '.kbbbk..', '..kbbbk.', '...kbbbk', '....kbbb']
+  ];
+  // 뒷다리는 엉덩이 아래, 앞다리는 가슴 아래에서 움직인다
+  var LEGS2 = [
+    ['......kbbssk...........kbbssk..........', '.....kbbssk.............kbbssk.........', '....kbbssk...............kbbssk........', '...kDDDDk.................kDDDDk.......', '...kkkkk...................kkkkk.......'],
+    ['.......kbbssk..........kbbssk..........', '.......kbbssk..........kbbssk..........', '.......kbbssk..........kbbssk..........', '.......kDDDDk..........kDDDDk..........', '.......kkkkkk..........kkkkkk..........'],
+    ['........kbbssk........kbbssk...........', '........kbbssk.......kbbssk............', '.........kbbssk.....kbbssk.............', '.........kDDDDk.....kDDDDk.............', '.........kkkkkk.....kkkkkk.............'],
+    ['......kbbssk.............kbbssk........', '......kbbssk..............kbbssk.......', '.....kbbssk.................kbbssk.....', '.....kDDDDk.................kDDDDk.....', '.....kkkkkk.................kkkkkk.....']
+  ];
+  var BOB = [2, 0, 1, 0];     // 장면마다 몸이 뜨는 칸 수
+  var DOG2_COL = { k: '#1E1914', h: '#C98A52', l: '#B0703F', b: '#8A5230', s: '#6E3F22', d: '#5A3119', D: '#43230F', w: '#FFFFFF', e: '#111111', n: '#2B1A10', p: '#E8607A', P: '#B9435C', r: '#D9776A' };
+  function dog2Rows(f) {
+    // 몸은 짧고 둥글게: 몸통 가운데 3칸을 빼고, 가운데 한 줄을 빼서 다리를 한 줄 길게
+    var tuck = function (r) { return '...' + r.slice(0, 10) + r.slice(13); };
+    var legs = LEGS2[f].map(function (r) { return '...' + r.slice(0, 16) + r.slice(19); });
+    legs = legs.slice(0, 3).concat([legs[2]], legs.slice(3));
+    var body = BODY2.map(function (r, y) { return y >= 11 ? tuck(r) : r; });
+    body.splice(17, 1);
+    var rows = body.slice(0, 21), bellyRow = body[21], belly = '';
+    for (var c = 0; c < 40; c++) {
+      var t = bellyRow.charAt(c), below = legs[0].charAt(c);
+      belly += t !== '?' ? t : (below === 's' || below === 'b' ? 's' : 'k');
+    }
+    rows.push(belly);
+    rows = rows.concat(legs);
+    var tail = TAILS2[f % 2];
+    return rows.map(function (r, y) {
+      var tr = tail[y - 4]; if (!tr) return r;
+      tr = '...' + tr;
+      var out = '';
+      for (var c = 0; c < 40; c++) out += c < tr.length && r.charAt(c) === '.' && tr.charAt(c) !== '.' ? tr.charAt(c) : r.charAt(c) || '.';
+      return out;
+    });
+  }
+
+  // 도트 그림 도우미
+  var OUTL = { '#1E1914': 1, '#141414': 1 };
+  function isOut(c) { return !!OUTL[c]; }
+  // Scale2x: 예전 소품 그림을 2배로 키우면서 대각선 계단을 매끄럽게
+  function scale2x(g) {
+    var H = g.length, W = g[0].length, o = [];
+    for (var y = 0; y < H * 2; y++) { o.push([]); for (var x = 0; x < W * 2; x++) o[y].push(''); }
+    var at = function (x, y) { return y < 0 || y >= H || x < 0 || x >= W ? '' : g[y][x]; };
+    for (y = 0; y < H; y++) for (x = 0; x < W; x++) {
+      var P = g[y][x], A = at(x, y - 1), B = at(x + 1, y), C = at(x - 1, y), D = at(x, y + 1);
+      var e0 = P, e1 = P, e2 = P, e3 = P;
+      if (C !== B && A !== D) { e0 = C === A ? A : P; e1 = A === B ? B : P; e2 = D === C ? C : P; e3 = B === D ? D : P; }
+      o[y * 2][x * 2] = e0; o[y * 2][x * 2 + 1] = e1; o[y * 2 + 1][x * 2] = e2; o[y * 2 + 1][x * 2 + 1] = e3;
+    }
+    return o;
+  }
+  // 2배로 키우면 테두리도 2칸 두께가 되니, 안쪽 반을 옆 색으로 채워 1칸 테두리로
+  function thinOutline(g) {
+    var H = g.length, W = g[0].length, o = g.map(function (r) { return r.slice(); });
+    var at = function (x, y) { return y < 0 || y >= H || x < 0 || x >= W ? '' : g[y][x]; };
+    for (var y = 0; y < H; y++) for (var x = 0; x < W; x++) {
+      if (!isOut(g[y][x])) continue;
+      var nb = [at(x, y - 1), at(x + 1, y), at(x - 1, y), at(x, y + 1)];
+      if (nb.some(function (c) { return c === ''; })) continue;
+      var cnt = {}, best = '', bn = 0;
+      nb.forEach(function (c) { if (c && !isOut(c)) { cnt[c] = (cnt[c] || 0) + 1; if (cnt[c] > bn) { bn = cnt[c]; best = c; } } });
+      if (best) o[y][x] = best;
+    }
+    return o;
+  }
+  function shiftCol(hex, f) {
+    var n = parseInt(hex.slice(1), 16), r = n >> 16, g = n >> 8 & 255, b = n & 255;
+    var m = function (v) { return Math.max(0, Math.min(255, Math.round(f > 0 ? v + (255 - v) * f : v * (1 + f)))); };
+    return '#' + ((1 << 24) + (m(r) << 16) + (m(g) << 8) + m(b)).toString(16).slice(1);
+  }
+  function mixCol(a, b, t) {
+    var p = function (h) { var n = parseInt(h.slice(1), 16); return [n >> 16, n >> 8 & 255, n & 255]; };
+    var x = p(a), y = p(b), o = x.map(function (v, i) { return Math.round(v + (y[i] - v) * t); });
+    return '#' + ((1 << 24) + (o[0] << 16) + (o[1] << 8) + o[2]).toString(16).slice(1);
+  }
+  var NO_SHADE = { '#FFFFFF': 1, '#111111': 1, '#2B1A10': 1 };
+  // 명암: 위쪽 가장자리는 밝게, 아래쪽 가장자리는 어둡게 (빛은 왼쪽 위에서)
+  function shadeGrid(g) {
+    var H = g.length, W = g[0].length, o = g.map(function (r) { return r.slice(); });
+    var edge = function (x, y) { return y < 0 || y >= H || x < 0 || x >= W || g[y][x] === '' || isOut(g[y][x]); };
+    for (var y = 0; y < H; y++) for (var x = 0; x < W; x++) {
+      var c = g[y][x];
+      if (!c || isOut(c) || NO_SHADE[c] || c.charAt(0) !== '#') continue;
+      if (edge(x, y - 1) && !edge(x, y + 1)) o[y][x] = shiftCol(c, .22);
+      else if (edge(x, y + 1) || edge(x + 1, y) && edge(x, y + 2)) o[y][x] = shiftCol(c, -.22);
+    }
+    return o;
+  }
+  // 글자 그림을 칸에 칠하기. tint(색, 비율)은 아래 색과 섞는다(투명창)
+  function tint(c, a) { return { tint: c, a: a }; }
+  function paintGrid(g, x0, y0, rows, pal) {
+    rows.forEach(function (row, dy) {
+      for (var i = 0; i < row.length; i++) {
+        var c = pal[row.charAt(i)], y = y0 + dy, x = x0 + i;
+        if (c === undefined || y < 0 || y >= g.length || x < 0 || x >= g[0].length) continue;
+        if (c && c.tint) c = g[y][x] && !isOut(g[y][x]) ? mixCol(g[y][x], c.tint, c.a) : c.tint;
+        g[y][x] = c;
       }
     });
-    return c;
   }
-  var DOGS = [[dogCanvas(0, false), dogCanvas(1, false)], [dogCanvas(0, true), dogCanvas(1, true)]];
 
   /* ── 강아지 착장: 날씨·기념일·계절에 따라 갈아입는다 (아래 pickOutfit) ──
-     recolor: 영역 안의 몸 색(b·l·d)을 옷 색으로 바꾼다 (다리 모양이 다른 두 장면에 똑같이 적용)
-     over: 강아지 그림 위에 겹쳐 그리는 소품. x·y는 강아지 그림 왼쪽 위 기준이고, 바깥(음수·20 넘음)도 된다 */
-  var OUT_PAD = { l: 2, t: 5, r: 9 };
+     아래 OUTFITS는 예전 20×14 칸 기준 좌표로 적는다(2배로 키워서 그린다).
+     recolor: 영역 안의 몸 색(b·l·d)을 옷 색으로 바꾼다 / over: 강아지 그림 위에 겹쳐 그리는 소품 (x·y는 강아지 왼쪽 위 기준, 바깥도 된다) */
+  var L_PAD = { l: 2, t: 5, r: 9 };                       // 예전 칸 기준 여백
+  var DOG_W = 40, DOG_H = 28, OUT_PAD = { l: 4, t: 10, r: 18 };   // 새 칸 기준 (그리기에 씀)
   var OUTFITS = {
     sunglasses: { name: '선글라스', col: { k: '#1E1914', g: '#24324A', s: '#8FB8FF' },
       over: [[12, 2, ['kkkkkkkk', '.kgsggk.', '.kgggk..', '..kkk...']]] },
-    raincoat: { name: '우비 + 장화', col: { Y: '#FFD23F', k: '#1E1914' },
-      recolor: [[2, 15, 6, 10, { b: '#FFD23F', l: '#FFE77A', d: '#E0A800' }], [9, 16, 0, 2, { b: '#FFD23F', l: '#FFE77A', d: '#E0A800' }],
-                [0, 19, 11, 13, { b: '#2F6FD0', d: '#24549E', l: '#2F6FD0' }]],
-      over: [[11, -1, ['.kkkkk.', 'kYYYYYk']], [14, 2, ['kYYYk']]] },
+    raincoat: { name: '우비 (후드 + 투명창)', col: {} },
     sejong: { name: '세종대왕 (익선관·곤룡포)', col: { k: '#141414', G: '#F2C12E', m: '#3A3A3A' },
       recolor: [[2, 16, 6, 10, { b: '#C0392B', l: '#E25B4B', d: '#8E2A20' }]],
       over: [[11, -4, ['.kk..kk', '.kmkkmk', '.kkkkk.', 'kkkkkkk', 'kkkkkkk']], [10, 7, ['GG', 'GG']], [4, 9, ['GGGGGGGGGG']]] },
     taegukgi: { name: '태극기 (나라 기념일·추모일)', col: { B: '#8A5A2B', w: '#FFFFFF', k: '#1E1914', R: '#D2412E', U: '#2D6CC8' },
-      over: [[20, -4, ['Bkkkkkkkk', 'Bkwwwwwwk', 'BkwkwwkwK'.replace('K', 'k'), 'BkwwRRwwk', 'BkwwUUwwk', 'Bkwkwwkwk', 'Bkwwwwwwk', 'Bkkkkkkkk',
+      over: [[20, -4, ['Bkkkkkkkk', 'Bkwwwwwwk', 'Bkwkwwkwk', 'BkwwRRwwk', 'BkwwUUwwk', 'Bkwkwwkwk', 'Bkwwwwwwk', 'Bkkkkkkkk',
         'B', 'B', 'B', 'B', 'B', 'B', 'B']]] },
     hanbok: { name: '한복 (설·추석)', col: { R: '#D2412E' },
       recolor: [[2, 16, 6, 8, { b: '#F28CB1', l: '#F8B8D0', d: '#D9668F' }], [2, 16, 9, 10, { b: '#4A6FD9', l: '#6E8EE6', d: '#2F4FA8' }]],
@@ -1826,12 +1929,8 @@ window.NB_LIBS = (function () {
     santa: { name: '산타 모자 (성탄절)', col: { R: '#D2412E', W: '#FFFFFF' },
       over: [[11, -5, ['......W', '....RR.', '..RRRR.', '.RRRRR.', 'WWWWWWW']]] },
     // ── 날씨 ──
-    snowhat: { name: '털모자 + 목도리 (눈)', col: { B: '#2D6CC8', W: '#FFFFFF', R: '#D2412E' },
-      recolor: [[9, 13, 6, 7, { b: '#D2412E', l: '#E25B4B', d: '#9E2A20' }]],
-      over: [[11, -4, ['...W...', '..BBB..', '.BBBBB.', 'WWWWWWW']], [10, 8, ['R', 'R']]] },
-    earmuff: { name: '귀마개 + 목도리 (영하)', col: { k: '#1E1914', P: '#FF8FB1', R: '#D2412E' },
-      recolor: [[9, 13, 6, 7, { b: '#D2412E', l: '#E25B4B', d: '#9E2A20' }]],
-      over: [[10, -1, ['.kkkkkk']], [9, 0, ['k', 'k']], [8, 2, ['PP', 'PP', 'PP']], [10, 8, ['R', 'R']]] },
+    snowhat: { name: '털모자 + 목도리 (눈)', col: {}, over: [[11, -4, []]] },
+    earmuff: { name: '귀마개 + 목도리 (영하)', col: {} },
     // ── 계절 기본 ──
     spring: { name: '꽃 (봄)', col: { P: '#FF8FB1', Y: '#FFD23F' },
       over: [[10, -2, ['.P.', 'PYP', '.P.']]] },
@@ -1839,65 +1938,194 @@ window.NB_LIBS = (function () {
       over: [[9, -3, ['...TTTTT..', '..trrrrrt.', 'TTTTTTTTTTT']]] },
     autumn: { name: '단풍잎 (가을)', col: { O: '#E8742A', o: '#8A5A2B', R: '#D2412E' },
       over: [[10, -3, ['O.R.O', '.OOO.', 'ROOOR', '..o..']]] },
-    winter: { name: '목도리 (겨울)', col: { R: '#D2412E' },
-      recolor: [[9, 13, 6, 7, { b: '#D2412E', l: '#E25B4B', d: '#9E2A20' }]],
-      over: [[10, 8, ['R', 'R', 'R']]] }
+    winter: { name: '목도리 (겨울)', col: {} }
   };
-  function outfitCanvas(frame, flip, key) {
-    var o = OUTFITS[key] || {}, W = DOG_W + OUT_PAD.l + OUT_PAD.r, H = DOG_H + OUT_PAD.t;
-    var c = document.createElement('canvas'); c.width = W; c.height = H;
-    var x = c.getContext('2d');
-    var put = function (px, py, color) { x.fillStyle = color; x.fillRect(flip ? W - 1 - px : px, py, 1, 1); };
-    DOG_FRAMES[frame].forEach(function (row, y) {
+  // 새 칸에 맞춰 손으로 다시 그린 소품: OUTFITS[key].over의 몇 번째를 바꾸는지 (dx·dy는 새 칸 기준으로 조금 옮김)
+  var HD = {
+    sejong: { 0: { col: { k: '#141414', K: '#2A2A2A', h: '#4A4A4A', m: '#3C3C3C', M: '#6A6A6A', G: '#F2C12E' }, rows: [
+      '.kkk...kkk....',
+      'kMmmk.kMmmk...',
+      'kmmmk.kmmmk...',
+      '.kkkkkkkkkkk..',
+      '..khhKKKKKKKk.',
+      '.khKKKKKKKKKKk',
+      '.kKKKKKKKKKKKk',
+      'kGGGGGGGGGGGGk',
+      'kKKKKKKKKKKKKk',
+      'kkkkkkkkkkkkkk'] },
+      1: { col: { G: '#F2C12E', g: '#B8860B', w: '#FFF3C4', k: '#141414' }, dx: -1, dy: -1, rows: [
+      '.GGGG.',
+      'GgwwgG',
+      'GwggwG',
+      'GwggwG',
+      'GgwwgG',
+      '.GGGG.'] } },
+    snowhat: { 0: { col: { k: '#1E1914', W: '#FFFFFF', w: '#D6E2EE', B: '#2D6CC8', b: '#1F4E99', h: '#5B8CD4' }, rows: [
+      '.....kkkk.....',
+      '....kWWwWk....',
+      '....kWwWwk....',
+      '...kkkBBkkk...',
+      '..khhBBbBBBk..',
+      '.khBbBBbBBbBk.',
+      '.kBBbBBbBBbBk.',
+      'kWWWWWWWWWWWWk',
+      'kWwWwWwWwWwWwk',
+      'kkkkkkkkkkkkkk'] } }
+  };
+  // 새 몸에 맞춰 예전 소품 자리를 조금 옮김 (새 칸 기준 [x, y])
+  var OVER_SHIFT = { backpack: { 0: [4, 5], 1: [4, 5] } };
+  // 목도리: 목을 한 바퀴 감고, 끝은 뒤로 휘날린다 (강아지 칸 기준)
+  function paintScarf(g, f, R, r) {
+    var P = { k: '#1E1914', R: R, r: r, W: '#FFFFFF' };
+    paintGrid(g, 12 + OUT_PAD.l, 12 + OUT_PAD.t, f % 2 ? ['......kk.', '...kkkRRk', 'kkkRRRRrk', 'kRRRrrkk.', '.kWkWkk..', '..k.k....']
+      : ['......kk.', '...kkkRRk', 'kkkRRRRrk', 'kRRRrrkk.', 'kWkWkk...', '.k.k.....'], P);
+    paintGrid(g, 19 + OUT_PAD.l, 9 + OUT_PAD.t, ['..kkkk.........', '.kRRRRkkkk.....', 'kRWRRWRRRRkkk..', 'kRRWRRWRRWRRRk.', '.krRRrRRrRRrRk.', '..kkkkkkkkkkkk.'], P);
+  }
+  // 소품 위에 더하는 잔무늬 (강아지 칸 기준 = 여백 뺀 좌표)
+  var DETAIL = {
+    sejong: function (g) {
+      paintGrid(g, 8 + OUT_PAD.l, 18 + OUT_PAD.t, ['GgGGgGGgGGgGGgGGgGGg', 'gGGgGGgGGgGGgGGgGGgG'], { G: '#F2C12E', g: '#B8860B' });   // 허리띠(서대)
+    },
+    raincoat: function (g) {
+      // 머리 뒤·위를 덮는 노란 후드 + 얼굴 앞의 투명창, 몸을 덮는 망토 (장화 없음)
+      var P = { k: '#1E1914', Y: '#FFD23F', y: '#E0A800', h: '#FFE77A', v: tint('#E3F6FC', .55), V: '#FFFFFF', U: '#FFF6C8' };
+      var X = OUT_PAD.l, Y = OUT_PAD.t;
+      paintGrid(g, 17 + X, -2 + Y, [
+        '.......kkkkkkk....',
+        '.....kkhhhhhhvvk..',
+        '....khhYYYYYYvVvk.',
+        '...khYYYYYYYvVvk..',
+        '..khYYYYYYYvvk....',
+        '..kYYYYYYYvVk.....',
+        '..kYYYYYYYvvk.....',
+        '..kyYYYYYYvVk.....',
+        '..kyYYYYYYvvk.....',
+        '..kyYYYYYYvVk.....',
+        '..kyyYYYYYvvk.....',
+        '..kyyYYYYYvk......',
+        '..kyyYYYYYk.......',
+        '...kyYYYYk........'], P);
+      paintGrid(g, 9 + X, 21 + Y, ['yhyhyhyhyhyhyhyhyhyhyh', 'kkkkkkkkkkkkkkkkkkkkkk'], P);   // 망토 단
+      paintGrid(g, 8 + X, 21 + Y, ['k', 'k'], P); paintGrid(g, 31 + X, 21 + Y, ['k', 'k'], P);
+      paintGrid(g, 12 + X, 15 + Y, ['U', '.', '.', '.', 'U'], P);                 // 맺힌 빗방울
+      paintGrid(g, 20 + X, 17 + Y, ['U'], P);
+    },
+    snowhat: function (g, f) { paintScarf(g, f, '#D2412E', '#9E2A20'); },
+    winter: function (g, f) { paintScarf(g, f, '#D2412E', '#9E2A20'); },
+    earmuff: function (g, f) {
+      var X = OUT_PAD.l, Y = OUT_PAD.t, P = { k: '#1E1914', g: '#6B6B6B', P: '#FF8FB1', p: '#FFC7DA', q: '#E46F96' };
+      paintScarf(g, f, '#2D6CC8', '#1F4E99');
+      paintGrid(g, 23 + X, -2 + Y, ['kkkkkkkkk', 'gggggggggk'], P);   // 머리띠
+      paintGrid(g, 22 + X, -1 + Y, ['k'], P);
+      paintGrid(g, 18 + X, -1 + Y, ['..kkkk..', '.kPpPPk.', 'kPPpPPqk', 'kPpPPpqk', 'kPPPpPqk', 'kPpPPqqk', '.kPqqqk.', '..kkkk..'], P);   // 털 귀마개
+    }
+  };
+  // 새 칸에만 쓰는 몸 색 바꾸기 (새 칸 좌표, 2배 안 함)
+  var RECOLOR2 = {
+    raincoat: [[4, 32, 11, 21, { b: '#FFD23F', l: '#FFE77A', d: '#E0A800' }]]
+  };
+  // 옷 색 바꾸기에 쓸 그늘색 (b·l·d만 정해 두면 h·s·D는 알아서)
+  function fullRecolor(m) {
+    var o = {}; for (var k in m) o[k] = m[k];
+    if (m.l && !o.h) o.h = shiftCol(m.l, .2);
+    if (m.b && !o.s) o.s = shiftCol(m.b, -.2);
+    if (m.d && !o.D) o.D = shiftCol(m.d, -.2);
+    return o;
+  }
+  function outfitGrid(frame, key) {
+    var o = OUTFITS[key] || {}, W = DOG_W + OUT_PAD.l + OUT_PAD.r, H = DOG_H + OUT_PAD.t, g = [];
+    for (var y = 0; y < H; y++) { g.push([]); for (var x = 0; x < W; x++) g[y].push(''); }
+    var rec = (o.recolor || []).map(function (r) { return [r[0] * 2, r[1] * 2 + 1, r[2] * 2, r[3] * 2 + 1, fullRecolor(r[4])]; })
+      .concat((RECOLOR2[key] || []).map(function (r) { return [r[0], r[1], r[2], r[3], fullRecolor(r[4])]; }));
+    dog2Rows(frame).forEach(function (row, y) {
       for (var i = 0; i < DOG_W; i++) {
-        var ch = row.charAt(i), color = DOG_COL[ch];
+        var ch = row.charAt(i), color = DOG2_COL[ch];
         if (!color) continue;
-        (o.recolor || []).forEach(function (r) { if (i >= r[0] && i <= r[1] && y >= r[2] && y <= r[3] && r[4][ch]) color = r[4][ch]; });
-        put(i + OUT_PAD.l, y + OUT_PAD.t, color);
+        rec.forEach(function (r) { if (i >= r[0] && i <= r[1] && y >= r[2] && y <= r[3] && r[4][ch]) color = r[4][ch]; });
+        g[y + OUT_PAD.t][i + OUT_PAD.l] = color;
       }
     });
-    (o.over || []).forEach(function (ov) {
-      ov[2].forEach(function (row, dy) {
-        for (var i = 0; i < row.length; i++) {
-          var ch = row.charAt(i), color = (o.col || {})[ch];
-          if (color) put(ov[0] + i + OUT_PAD.l, ov[1] + dy + OUT_PAD.t, color);
-        }
+    // 소품: 손으로 다시 그린 게 있으면 그것, 없으면 예전 소품을 2배로 키워 매끄럽게 + 명암
+    var propPx = [], hd = HD[key] || {};
+    (o.over || []).forEach(function (ov, oi) {
+      var sg = [], h = hd[oi], sh = (OVER_SHIFT[key] || {})[oi], ox = sh ? sh[0] : 0, oy = sh ? sh[1] : 0;
+      if (h) {
+        h.rows.forEach(function (r) { var a = []; for (var i = 0; i < r.length; i++) a.push(h.col[r.charAt(i)] || ''); sg.push(a); });
+        ox = h.dx || 0; oy = h.dy || 0;
+      } else {
+        var rows = ov[2], w = Math.max.apply(null, rows.map(function (r) { return r.length; }));
+        if (!w) return;
+        rows.forEach(function (r) { var a = []; for (var i = 0; i < w; i++) a.push((o.col || {})[r.charAt(i)] || ''); sg.push(a); });
+        sg = shadeGrid(thinOutline(scale2x(sg)));
+      }
+      sg.forEach(function (r, dy) { r.forEach(function (c, i) {
+        if (!c) return;
+        var yy = (ov[1] + L_PAD.t) * 2 + dy + oy, xx = (ov[0] + L_PAD.l) * 2 + i + ox;
+        if (g[yy] && xx >= 0 && xx < W) { g[yy][xx] = c; if (!isOut(c)) propPx.push([xx, yy]); }
+      }); });
+    });
+    // 소품이 빈 곳과 닿은 가장자리에 테두리 (흰 소품도 배경에서 또렷하게)
+    propPx.forEach(function (p) {
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
+        var xx = p[0] + d[0], yy = p[1] + d[1];
+        if (g[yy] && xx >= 0 && xx < W && g[yy][xx] === '') g[yy][xx] = '#1E1914';
       });
     });
+    if (key && DETAIL[key]) DETAIL[key](g, frame);
+    for (var bb = 0; bb < BOB[frame]; bb++) g = g.slice(1).concat([g[0].map(function () { return ''; })]);
+    return g;
+  }
+  function outfitCanvas(frame, flip, key) {
+    var g = outfitGrid(frame, key), W = g[0].length;
+    var c = document.createElement('canvas'); c.width = W; c.height = g.length;
+    var x = c.getContext('2d');
+    g.forEach(function (row, y) { row.forEach(function (col, i) { if (col) { x.fillStyle = col; x.fillRect(flip ? W - 1 - i : i, y, 1, 1); } }); });
     return c;
   }
   /* 견본 보기: 콘솔에서 nbOutfitGallery() → 착장 견본을 크게 띄움 (누르면 닫힘) */
   window.nbOutfitGallery = function () {
-    var keys = [''].concat(Object.keys(OUTFITS)), S2 = 9;
+    var keys = [''].concat(Object.keys(OUTFITS)), S2 = 5;
     var box = document.createElement('div');
-    box.style.cssText = 'position:fixed;top:0;right:0;bottom:0;left:0;z-index:999;background:#F5F6F2;display:flex;flex-wrap:wrap;gap:18px;padding:18px;align-content:flex-start;overflow:auto';
+    box.style.cssText = 'position:fixed;top:0;right:0;bottom:0;left:0;z-index:999;background:#F5F6F2;display:flex;flex-wrap:wrap;gap:14px;padding:14px;align-content:flex-start;overflow:auto';
     keys.forEach(function (k) {
       var card = document.createElement('div');
-      card.style.cssText = 'background:#fff;border:3px solid #1E1914;padding:10px 12px;text-align:center;font:900 16px Noto Sans KR,sans-serif';
-      [0, 1].forEach(function (f) {
+      card.style.cssText = 'background:#fff;border:3px solid #1E1914;padding:8px 10px;text-align:center;font:900 15px Noto Sans KR,sans-serif';
+      [0, 2].forEach(function (f) {
         var src = outfitCanvas(f, false, k), cv = document.createElement('canvas');
-        cv.width = src.width * S2; cv.height = src.height * S2; cv.style.margin = '0 4px';
+        cv.width = src.width * S2; cv.height = src.height * S2; cv.style.margin = '0 2px';
         var cx = cv.getContext('2d'); cx.imageSmoothingEnabled = false; cx.drawImage(src, 0, 0, cv.width, cv.height);
         card.appendChild(cv);
       });
-      var t = document.createElement('div'); t.textContent = k ? OUTFITS[k].name : '기본 (지금)'; card.appendChild(t);
+      var t = document.createElement('div'); t.textContent = k ? OUTFITS[k].name : '기본'; card.appendChild(t);
       box.appendChild(card);
     });
     box.addEventListener('click', function () { box.remove(); });
     document.body.appendChild(box);
   };
-  // 섬으로 갈 때 타는 배 (오른쪽으로 가는 모양, 뒤쪽에 깃발). 강아지는 갑판(4번째 줄) 위에 선다
-  var BOAT = [
-    '..k...................',
-    '..kRR.................',
-    '..kRRR................',
-    '..k...................',
-    'kkkkkkkkkkkkkkkkkkkkkk',
-    'kRRRRRRRRRRRRRRRRRRRRk',
-    '.kRRRRRRRRRRRRRRRRRRk.',
-    '..kWWWWWWWWWWWWWWWWk..',
-    '...kkkkkkkkkkkkkkkk...'];
-  var BOAT_COL = { k: '#1E1914', R: '#D9442E', W: '#F4F4F4' }, BOAT_W = 22, BOAT_H = 9, BOAT_DECK = 4;
+  // 섬으로 갈 때 타는 배 (오른쪽으로 가는 모양, 뒤쪽에 깃발). 강아지는 갑판(8번째 줄) 뒤에 서서 몸만 보인다
+  var BOAT = (function () {
+    var W = 44, rows = [
+      '....k.......................................',
+      '....kRRRr...................................',
+      '....kRhRRRr.................................',
+      '....kRRRRr..................................',
+      '....kRr.....................................',
+      '....k.......................................',
+      '....k...................................kkk.',
+      '....k.................................kkhhk.',
+      'kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkhhhk.',
+      'khhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhk',
+      'kRRRRRRRkOokRRRRRRkOokRRRRRRkOokRRRRRRRRRRk.',
+      '.kRRRRRRkook.RRRRRkook.RRRRRkookRRRRRRRRRk..',
+      '.kWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWk.',
+      '..kwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwk..',
+      '...kRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRk...',
+      '....krrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrk....',
+      '.....kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk.....'];
+    return rows.map(function (r) { while (r.length < W) r += '.'; return r.slice(0, W); });
+  })();
+  var BOAT_COL = { k: '#1E1914', R: '#D9442E', r: '#A8321F', h: '#FF8A6E', W: '#F4F4F4', w: '#C9CED3', O: '#BFE3F2', o: '#2D4A6B' },
+    BOAT_W = 44, BOAT_H = 17, BOAT_DECK = 8;
   function boatCanvas(flip) {
     var c = document.createElement('canvas'); c.width = BOAT_W; c.height = BOAT_H;
     var x = c.getContext('2d');
@@ -1912,18 +2140,24 @@ window.NB_LIBS = (function () {
   var BOATS = [boatCanvas(false), boatCanvas(true)];
 
   /* ── 지금 입고 있는 착장 그림 (지도·목표 막대·축하 화면이 같이 쓴다) ── */
+  var DOG_FRAMES_N = 4;
   var dogOutfit = null, dogSprites = null, dogURLs = [];
   function setDogOutfit(key) {
     key = key || '';
     if (key === dogOutfit) return;
     dogOutfit = key;
-    dogSprites = [[outfitCanvas(0, false, key), outfitCanvas(1, false, key)], [outfitCanvas(0, true, key), outfitCanvas(1, true, key)]];
-    dogURLs = [dogSprites[0][0].toDataURL(), dogSprites[0][1].toDataURL()];
+    dogSprites = [[], []];
+    dogURLs = [];
+    for (var f = 0; f < DOG_FRAMES_N; f++) {
+      dogSprites[0].push(outfitCanvas(f, false, key));
+      dogSprites[1].push(outfitCanvas(f, true, key));
+      dogURLs.push(dogSprites[0][f].toDataURL());
+    }
     if ($('gDog')) $('gDog').src = dogURLs[0];
   }
   // 강아지 그림 왼쪽 위(x, y)를 기준으로, 소품 여백까지 포함해 그린다
   function drawDogAt(c2d, frame, left, x, y, ds) {
-    var s = dogSprites[left ? 1 : 0][frame], offL = left ? OUT_PAD.r : OUT_PAD.l;
+    var s = dogSprites[left ? 1 : 0][frame % DOG_FRAMES_N], offL = left ? OUT_PAD.r : OUT_PAD.l;
     c2d.drawImage(s, x - offL * ds, y - OUT_PAD.t * ds, s.width * ds, s.height * ds);
   }
   setDogOutfit('');
@@ -1931,7 +2165,7 @@ window.NB_LIBS = (function () {
   (function () {
     var f = 0, img = $('gDog');
     img.src = dogURLs[0];
-    setInterval(function () { if (S.view === 'tv' && !document.hidden) { f = 1 - f; img.src = dogURLs[f]; } }, 220);
+    setInterval(function () { if (S.view === 'tv' && !document.hidden) { f = (f + 1) % DOG_FRAMES_N; img.src = dogURLs[f]; } }, 110);
   })();
 
   /* ── 오늘 입을 착장 고르기 ──
@@ -2206,9 +2440,10 @@ window.NB_LIBS = (function () {
       return { x: pts[0].xy[0], y: pts[0].xy[1], dx: 1, i: 0 };
     }
     // 길을 도트로 긋기 (from~to 바퀴 구간)
-    function strokePath(x, from, to, w, color, dash) {
+    function strokePath(x, from, to, w, color, dash, sc) {
       if (to <= from) return;
-      var step = 0.6;
+      sc = sc || 1;
+      var step = 0.6 / sc;
       for (var i = 0; i < pts.length - 1; i++) {
         var a = pts[i], b = pts[i + 1];
         var s = Math.max(from, a.laps), e = Math.min(to, b.laps);
@@ -2217,14 +2452,41 @@ window.NB_LIBS = (function () {
         var n = Math.max(1, Math.ceil(len * (e - s) / L / step));
         for (var k = 0; k <= n; k++) {
           var lp = s + (e - s) * k / n, f = (lp - a.laps) / L;
-          if (dash && Math.floor((f * len) / 3) % 2) continue;
+          if (dash && Math.floor((f * len * sc) / dash) % 2) continue;
           x.fillStyle = color;
-          x.fillRect(Math.round(a.xy[0] + (b.xy[0] - a.xy[0]) * f - w / 2), Math.round(a.xy[1] + (b.xy[1] - a.xy[1]) * f - w / 2), w, w);
+          x.fillRect(Math.round((a.xy[0] + (b.xy[0] - a.xy[0]) * f) * sc - w / 2), Math.round((a.xy[1] + (b.xy[1] - a.xy[1]) * f) * sc - w / 2), w, w);
         }
       }
     }
 
-    var cv = null, ctx = null, buf = null, bx = null;
+    // 거점 표시: 12×12 도트 (테두리, 위·왼쪽은 밝게, 아래·오른쪽은 어둡게, 아래로 그림자). 출발점은 깃발
+    var STOP = [
+      '.kkkkkkkkkk.',
+      'kHHHHHHHHHHk',
+      'kHFFFFFFFFSk',
+      'kHFFFFFFFFSk',
+      'kHFFFFFFFFSk',
+      'kHFFFFFFFFSk',
+      'kHFFFFFFFFSk',
+      'kHFFFFFFFFSk',
+      'kHFFFFFFFFSk',
+      'kHFFFFFFFFSk',
+      'kSSSSSSSSSSk',
+      '.kkkkkkkkkk.'];
+    function drawStop(x, cx, cy, fill, home) {
+      var pal = { k: '#23201C', F: fill, H: shiftCol(fill, .35), S: shiftCol(fill, -.22) };
+      x.fillStyle = 'rgba(0,0,0,.28)'; x.fillRect(cx - 5, cy + 6, 11, 2); x.fillRect(cx + 6, cy - 4, 1, 10);   // 그림자
+      STOP.forEach(function (row, dy) {
+        for (var i = 0; i < 12; i++) { var c = pal[row.charAt(i)]; if (c) { x.fillStyle = c; x.fillRect(cx - 6 + i, cy - 6 + dy, 1, 1); } }
+      });
+      if (home) {   // 학교: 가운데 흰 지붕 모양
+        x.fillStyle = '#FFFFFF';
+        x.fillRect(cx - 1, cy - 3, 2, 1); x.fillRect(cx - 2, cy - 2, 4, 1); x.fillRect(cx - 3, cy - 1, 6, 1); x.fillRect(cx - 2, cy, 4, 3);
+        x.fillStyle = '#C4432B'; x.fillRect(cx - 1, cy + 1, 2, 2);
+      }
+    }
+
+    var cv = null, ctx = null, buf = null, bx = null, rbuf = null, rbx = null;
     function size(cssW, cssH) {
       cv = $('tripMap');
       var dpr = window.devicePixelRatio || 1;
@@ -2248,7 +2510,7 @@ window.NB_LIBS = (function () {
       []
     ];
     function drawSea(x) {
-      var f = CALM ? 3 : frame;
+      var f = CALM ? 3 : frame >> 1;
       x.fillStyle = '#A9DCF0';
       seaWaves.forEach(function (w) {
         var st = (f + w.ph) % 8, shape = WAVE_SHAPES[st], drift = CALM ? 0 : Math.floor(((f + w.ph) % 16) / 8);
@@ -2258,51 +2520,135 @@ window.NB_LIBS = (function () {
     }
 
     // 날씨 효과 (보은 날씨에 따라 지도 위에): rain 비, snow 눈, storm 뇌우, cloud 구름, fog 안개, '' 맑음
-    var wxKind = '', wxBits = [];
+    // 지도보다 2배 촘촘한 판(WXW×WXH)에 그려서 빗줄기·눈송이·구름 결이 잘게 보이게 한다
+    var WXW = MAP.W * 2, WXH = MAP.H * 2, wxBuf = null, wxc = null;
+    var wxKind = '', wxBits = [], wxSplash = [], wxBolt = null, wxFlash = 0, wxNextBolt = 0, wxClouds = [], fogBand = null;
     function setWeather(kind) {
       if (kind === wxKind) return;
-      wxKind = kind; wxBits = [];
-      var n = kind === 'rain' || kind === 'storm' ? 140 : kind === 'snow' ? 110 : kind === 'cloud' ? 4 : 0;
-      for (var i = 0; i < n; i++) wxBits.push({ x: Math.random() * MAP.W, y: Math.random() * MAP.H, s: .6 + Math.random() * .8 });
-      if (kind === 'cloud') wxBits.forEach(function (c, i) { c.y = 12 + i * (MAP.H / 4.5); c.x = Math.random() * MAP.W; });
+      wxKind = kind; wxBits = []; wxSplash = []; wxBolt = null; wxFlash = 0; wxClouds = [];
+      if (!wxBuf) { wxBuf = document.createElement('canvas'); wxBuf.width = WXW; wxBuf.height = WXH; wxc = wxBuf.getContext('2d'); }
+      var i;
+      if (kind === 'rain' || kind === 'storm') {
+        var n = kind === 'storm' ? 300 : 220;
+        for (i = 0; i < n; i++) wxBits.push(newDrop(true));
+        wxNextBolt = frame + 30;
+      } else if (kind === 'snow') {
+        for (i = 0; i < 160; i++) wxBits.push({ x: Math.random() * WXW, y: Math.random() * WXH, l: i % 6 === 0 ? 2 : i % 2 ? 0 : 1, ph: Math.random() * 6.28, big: i % 18 === 0 });
+      } else if (kind === 'cloud') {
+        for (i = 0; i < 5; i++) wxClouds.push({ cv: cloudSprite(34 + (i % 3) * 10, false), sh: null, x: Math.random() * WXW, y: 18 + i * (WXH / 5.2) + (i % 2) * 14, v: .35 + (i % 3) * .15 });
+      } else if (kind === 'fog' && !fogBand) {
+        fogBand = fogSprite();
+      }
+      wxClouds.forEach(function (c) { c.sh = cloudSprite(c.cv.width - 2, true); });
     }
-    var CLOUD = ['..XXX.....', '.XXXXXX.X.', 'XXXXXXXXXX', '.XXXXXXXX.'];
-    function drawWeather(x) {
-      if (!wxKind || CALM && wxKind !== 'cloud' && wxKind !== 'fog') return;
-      if (wxKind === 'rain' || wxKind === 'storm') {
-        x.fillStyle = 'rgba(225,242,255,.85)';
-        wxBits.forEach(function (b) {
-          b.y += 9 * b.s; b.x -= 2 * b.s;
-          if (b.y > MAP.H) { b.y = -4; b.x = Math.random() * (MAP.W + 40); }
-          x.fillRect(Math.round(b.x), Math.round(b.y), 1, 3);
-        });
-        if (wxKind === 'storm' && frame % 23 === 0) { x.fillStyle = 'rgba(255,255,230,.45)'; x.fillRect(0, 0, MAP.W, MAP.H); }
-      } else if (wxKind === 'snow') {
-        x.fillStyle = '#FFFFFF';
-        wxBits.forEach(function (b, i) {
-          b.y += 1.6 * b.s; b.x += Math.sin((frame + i) * .5) * .8;
-          if (b.y > MAP.H) { b.y = -2; b.x = Math.random() * MAP.W; }
-          x.fillRect(Math.round(b.x), Math.round(b.y), b.s > 1 ? 2 : 1, b.s > 1 ? 2 : 1);
-        });
-      } else if (wxKind === 'cloud') {
-        wxBits.forEach(function (c, i) {
-          if (!CALM) c.x += .8 * (i % 2 ? 1 : .6);
-          if (c.x > MAP.W + 10) c.x = -42;
-          CLOUD.forEach(function (row, ry) {
-            for (var rx = 0; rx < row.length; rx++) if (row.charAt(rx) === 'X') {
-              x.fillStyle = 'rgba(120,135,140,.35)'; x.fillRect(Math.round(c.x) + rx * 4 + 2, Math.round(c.y) + ry * 3 + 2, 4, 3);
-              x.fillStyle = 'rgba(255,255,255,.9)'; x.fillRect(Math.round(c.x) + rx * 4, Math.round(c.y) + ry * 3, 4, 3);
-            }
-          });
-        });
-      } else if (wxKind === 'fog') {
-        x.fillStyle = 'rgba(255,255,255,.28)'; x.fillRect(0, 0, MAP.W, MAP.H);
-        x.fillStyle = 'rgba(255,255,255,.35)';
-        for (var band = 0; band < 6; band++) {
-          var by = (band * 57 + (CALM ? 0 : frame)) % MAP.H;
-          x.fillRect(0, by, MAP.W, 3);
+    function newDrop(anyY) {
+      var near = Math.random() < .35;
+      return { x: Math.random() * (WXW + 60), y: anyY ? Math.random() * WXH : -10 - Math.random() * 30, near: near,
+        sp: near ? 11 + Math.random() * 3 : 7 + Math.random() * 2, len: near ? 8 : 4 + (Math.random() * 2 | 0), gy: WXH * (.15 + Math.random() * .85) };
+    }
+    // 구름 한 덩이: 동그라미 몇 개를 겹친 도트 구름 (위는 흰색, 아래는 푸른 회색 그늘, 아래쪽 테두리만 살짝)
+    function cloudSprite(w, shadow) {
+      var h = Math.round(w * .45), c = document.createElement('canvas'); c.width = w + 2; c.height = h + 2;
+      var x = c.getContext('2d'), blobs = [[.28, .62, .26], [.5, .42, .32], [.74, .6, .24], [.45, .72, .22]];
+      var inside = function (px, py) {
+        return blobs.some(function (b) { var dx = px - b[0] * w, dy = (py - b[1] * h) * 1.6; return dx * dx + dy * dy <= (b[2] * w) * (b[2] * w); });
+      };
+      for (var py = 0; py < h; py++) for (var px = 0; px < w; px++) {
+        if (!inside(px, py)) continue;
+        var top = !inside(px, py - 2), bottom = !inside(px, py + 2), edgeB = !inside(px, py + 1);
+        x.fillStyle = shadow ? 'rgba(30,42,58,.2)' : edgeB ? '#AFC3D2' : bottom ? '#D4E0EA' : top ? '#FFFFFF' : (py < h * .55 ? '#F7FAFC' : '#E8EFF5');
+        x.fillRect(px + 1, py + 1, 1, 1);
+      }
+      return c;
+    }
+    // 안개 띠: 가운데는 촘촘하고 위아래로 갈수록 성긴 바둑판 점
+    function fogSprite() {
+      var c = document.createElement('canvas'), H = 14; c.width = WXW * 2; c.height = H;
+      var x = c.getContext('2d');
+      for (var y = 0; y < H; y++) {
+        var d = 1 - Math.abs(y - H / 2) / (H / 2);
+        for (var px = 0; px < c.width; px++) {
+          var on = d > .66 ? (px + y) % 2 === 0 || d > .85 : d > .33 ? (px + y) % 4 === 0 : (px * 3 + y) % 8 === 0;
+          if (on) { x.fillStyle = 'rgba(255,255,255,' + (.35 + d * .35).toFixed(2) + ')'; x.fillRect(px, y, 1, 1); }
         }
       }
+      return c;
+    }
+    var FLAKE = ['.w.', 'wWw', '.w.'], CRYSTAL = ['w...w', '.wWw.', '.WWW.', '.wWw.', 'w...w'];
+    var BOLT = [[0, 0], [1, 1], [1, 2], [2, 3], [2, 4], [1, 5], [0, 6], [1, 7], [2, 8], [3, 9], [3, 10], [2, 11], [1, 12], [2, 13], [3, 14], [4, 15], [4, 16], [3, 17]];
+    function stamp(x, rows, px, py, pal) {
+      rows.forEach(function (row, dy) { for (var i = 0; i < row.length; i++) { var c = pal[row.charAt(i)]; if (c) { x.fillStyle = c; x.fillRect(px + i, py + dy, 1, 1); } } });
+    }
+    // 그렸으면 true (지도 위에 2배 판을 겹친다)
+    function drawWeather() {
+      if (!wxKind || !wxc) return false;
+      if (CALM && wxKind !== 'cloud' && wxKind !== 'fog') return false;
+      var x = wxc;
+      x.clearRect(0, 0, WXW, WXH);
+      if (wxKind === 'rain' || wxKind === 'storm') {
+        if (wxKind === 'storm') { x.fillStyle = 'rgba(20,30,60,.16)'; x.fillRect(0, 0, WXW, WXH); }
+        wxBits.forEach(function (b, i) {
+          b.y += b.sp; b.x -= b.sp / 4;
+          if (b.near && b.y >= b.gy) {                       // 가까운 빗방울은 땅에 닿으면 톡 튄다
+            wxSplash.push({ x: Math.round(b.x), y: Math.round(b.gy), t: 0 });
+            wxBits[i] = newDrop(false); return;
+          }
+          if (b.y > WXH + 8) { wxBits[i] = newDrop(false); return; }
+          var X = Math.round(b.x), Y = Math.round(b.y), h1 = Math.ceil(b.len / 2);
+          x.fillStyle = b.near ? 'rgba(242,250,255,.97)' : 'rgba(215,235,255,.8)';
+          x.fillRect(X, Y, 1, h1); x.fillRect(X - 1, Y + h1, 1, b.len - h1);   // 비스듬한 빗줄기 (계단)
+        });
+        x.fillStyle = 'rgba(255,255,255,.85)';
+        wxSplash = wxSplash.filter(function (s) {
+          if (s.t === 0) { x.fillRect(s.x, s.y - 1, 1, 1); x.fillRect(s.x - 1, s.y, 1, 1); x.fillRect(s.x + 1, s.y, 1, 1); }
+          else { x.fillRect(s.x - 2, s.y - 1, 1, 1); x.fillRect(s.x + 2, s.y - 1, 1, 1); x.fillRect(s.x - 1, s.y + 1, 3, 1); }
+          return ++s.t < 2;
+        });
+        if (wxKind === 'storm') {
+          if (frame >= wxNextBolt) {                           // 번개: 지그재그 도트 + 화면이 번쩍
+            wxBolt = { x: 30 + Math.random() * (WXW - 60), y: 6 + Math.random() * 30, t: 0, s: 3 + (Math.random() * 2 | 0) };
+            wxFlash = 2; wxNextBolt = frame + 45 + (Math.random() * 60 | 0);
+          }
+          if (wxFlash > 0) { x.fillStyle = 'rgba(255,255,230,' + (wxFlash === 2 ? .45 : .2) + ')'; x.fillRect(0, 0, WXW, WXH); wxFlash--; }
+          if (wxBolt) {
+            BOLT.forEach(function (p) {
+              var bx = wxBolt.x + p[0] * wxBolt.s, by = wxBolt.y + p[1] * wxBolt.s;
+              x.fillStyle = 'rgba(255,240,140,.55)'; x.fillRect(bx - 1, by - 1, wxBolt.s + 2, wxBolt.s + 2);
+              x.fillStyle = '#FFFBE0'; x.fillRect(bx, by, wxBolt.s, wxBolt.s);
+            });
+            if (++wxBolt.t > 3) wxBolt = null;
+          }
+        }
+      } else if (wxKind === 'snow') {
+        wxBits.forEach(function (b) {
+          var sp = [.55, 1.05, 1.6][b.l];
+          b.y += sp; b.x += Math.sin(frame * .07 + b.ph) * (.25 + b.l * .3);
+          if (b.y > WXH + 6) { b.y = -6; b.x = Math.random() * WXW; }
+          var X = Math.round(b.x), Y = Math.round(b.y);
+          if (b.l === 0) { x.fillStyle = 'rgba(255,255,255,.8)'; x.fillRect(X, Y, 1, 1); }
+          else if (b.l === 1) { x.fillStyle = 'rgba(255,255,255,.92)'; x.fillRect(X, Y, 2, 2); x.fillStyle = 'rgba(200,225,245,.9)'; x.fillRect(X + 1, Y + 1, 1, 1); }
+          else {
+            stamp(x, b.big ? CRYSTAL : FLAKE, X, Y, { W: '#FFFFFF', w: 'rgba(225,240,255,.85)' });
+            if (b.big && frame % 24 < 3) { x.fillStyle = '#FFFFFF'; x.fillRect(X + 2, Y - 1, 1, 1); }   // 반짝
+          }
+        });
+      } else if (wxKind === 'cloud') {
+        wxClouds.forEach(function (c) {
+          if (!CALM) c.x += c.v;
+          if (c.x > WXW + 4) c.x = -c.cv.width - 4;
+          var X = Math.round(c.x), Y = Math.round(c.y);
+          x.drawImage(c.sh, X + 8, Y + 16);                 // 지도에 드리운 그림자
+          x.globalAlpha = .94; x.drawImage(c.cv, X, Y); x.globalAlpha = 1;
+        });
+      } else if (wxKind === 'fog') {
+        x.fillStyle = 'rgba(255,255,255,.22)'; x.fillRect(0, 0, WXW, WXH);
+        for (var band = 0; band < 7; band++) {
+          var by = (band * 91 + (CALM ? 0 : (frame >> 1))) % (WXH + 14) - 14;
+          var off = ((band * 37 + (CALM ? 0 : frame)) % WXW);
+          x.drawImage(fogBand, -off, by);
+        }
+      }
+      return true;
     }
 
     function curPos(now) {
@@ -2320,26 +2666,33 @@ window.NB_LIBS = (function () {
       // 지금 가고 있는 다음 목적지까지만 보여 준다 (그다음 지점은 다음 목적지에 도착해야 나타남)
       var shown = journey.nextIdx >= 0 ? Math.min(journey.nextIdx, pts.length - 1) : pts.length - 1;
       var end = pts[shown].laps;
-      strokePath(bx, 0, end, 2, '#FFFFFF', true);                      // 앞으로 갈 길 (흰 점선)
-      strokePath(bx, 0, p, 4, '#23201C', false);                         // 달린 길 테두리
-      strokePath(bx, 0, Math.min(p, anim.start), 2, '#FFC93C', false);   // 지난 날까지 달린 길 (노랑)
-      if (p > anim.start) strokePath(bx, anim.start, p, 2, frame % 2 ? '#FFF7B0' : '#FF8A3D', false);  // 오늘 달린 길 (반짝)
+      // 길과 거점은 지도보다 2배 촘촘한 판(rbuf)에: 선이 가늘고 매끄럽게, 거점 표시는 명암 있는 도트로
+      if (!rbuf) { rbuf = document.createElement('canvas'); rbuf.width = MAP.W * 2; rbuf.height = MAP.H * 2; rbx = rbuf.getContext('2d'); }
+      rbx.clearRect(0, 0, rbuf.width, rbuf.height);
+      var blink = (frame >> 1) % 2;
+      strokePath(rbx, 0, end, 2, '#FFFFFF', 5, 2);                        // 앞으로 갈 길 (흰 점선)
+      strokePath(rbx, 0, p, 7, '#23201C', 0, 2);                          // 달린 길 테두리
+      strokePath(rbx, 0, Math.min(p, anim.start), 3, '#FFC93C', 0, 2);    // 지난 날까지 달린 길 (노랑)
+      strokePath(rbx, 0, Math.min(p, anim.start), 1, '#FFE9A0', 0, 2);    //   가운데 밝은 줄
+      if (p > anim.start) {
+        strokePath(rbx, anim.start, p, 3, blink ? '#FFF7B0' : '#FF8A3D', 0, 2);   // 오늘 달린 길 (반짝)
+        strokePath(rbx, anim.start, p, 1, blink ? '#FFFFFF' : '#FFC08A', 0, 2);
+      }
       // 지점 표시 (마지막 '내북초'는 출발점과 같은 자리라 그리지 않는다)
       pts.forEach(function (s, i) {
         if (i > shown) return;
         if (i === pts.length - 1 && s.name === pts[0].name) return;
-        var X = Math.round(s.xy[0]), Y = Math.round(s.xy[1]);
         var reached = s.laps <= p + 1e-6 && i > 0, next = i === journey.nextIdx;
-        bx.fillStyle = '#23201C'; bx.fillRect(X - 3, Y - 3, 7, 7);
-        bx.fillStyle = i === 0 ? '#C4432B' : reached ? '#FFC93C' : next ? (frame % 2 ? '#FFFFFF' : '#FF8A3D') : '#FFFFFF';
-        bx.fillRect(X - 2, Y - 2, 5, 5);
+        var fill = i === 0 ? '#C4432B' : reached ? '#FFC93C' : next ? (blink ? '#FFFFFF' : '#FF8A3D') : '#FFFFFF';
+        drawStop(rbx, Math.round(s.xy[0] * 2), Math.round(s.xy[1] * 2), fill, i === 0);
       });
-      drawWeather(bx);
       // 2) 큰 화면에 그대로 키워서 (도트가 흐려지지 않게)
       var W = cv.width, H = cv.height, k = W / MAP.W;
       ctx.imageSmoothingEnabled = false;
       ctx.clearRect(0, 0, W, H);
       ctx.drawImage(buf, 0, 0, W, H);
+      ctx.drawImage(rbuf, 0, 0, W, H);
+      if (drawWeather()) ctx.drawImage(wxBuf, 0, 0, W, H);   // 2배 촘촘한 날씨 판
       // 3) 지명 (겹치는 같은 이름은 한 번만)
       var fs = Math.max(12, Math.round(k * 6.2));
       ctx.font = '900 ' + fs + 'px ' + getComputedStyle(document.body).fontFamily;
@@ -2380,42 +2733,42 @@ window.NB_LIBS = (function () {
         ctx.fillStyle = next ? '#FFF6B0' : '#FFFFFF';
         ctx.fillText(s.name, tx, ty);
         addText(s.name, tx, ty, lb[5]);
-      });
-      // 4) 강아지 (가는 방향을 보고, 통통 뛰면서)
-      var a = at(p), left = a.dx < 0, dog = DOGS[left ? 1 : 0][frame % 2];
-      var ds = Math.max(2, Math.round(k * 1.45));
+      });      // 4) 강아지 (가는 방향을 보고, 통통 뛰면서). 초코 한 칸 = 지도 한 칸의 절반쯤
+      var a = at(p), left = a.dx < 0, slow = (frame >> 1) % 2;
+      var ds = Math.max(1, Math.round(k * .725));
       var dw = DOG_W * ds, dh = DOG_H * ds;
       var running = now - anim.t0 < anim.dur;
       // 뱃길: 강아지가 배에 타고 물결 위에서 흔들린다
       if (pts[a.i] && pts[a.i].sea) {
-        var bw = BOAT_W * ds, bh = BOAT_H * ds, rock = frame % 2 ? ds : 0;
+        var bw = BOAT_W * ds, bh = BOAT_H * ds, rock = slow ? ds * 2 : 0;
         var bx0 = Math.round(a.x * k - bw / 2), by0 = Math.round(a.y * k - BOAT_DECK * ds + rock);
         // 물결: 배 양옆과 뒤로 흰 물보라
         ctx.fillStyle = 'rgba(255,255,255,.9)';
-        var wy = by0 + bh - ds;
-        for (var wv = 0; wv < 4; wv++) {
-          var off = (wv * 4 + (frame % 2) * 2) * ds;
-          ctx.fillRect(left ? bx0 + bw + off - ds * 2 : bx0 - off - ds, wy - (wv % 2) * ds, ds * 2, ds);
+        var wy = by0 + bh - ds * 2;
+        for (var wv = 0; wv < 5; wv++) {
+          var off = (wv * 6 + slow * 3) * ds;
+          ctx.fillRect(left ? bx0 + bw + off - ds * 3 : bx0 - off - ds * 2, wy - (wv % 2) * ds * 2, ds * 3, ds);
+          ctx.fillRect(left ? bx0 + bw + off - ds * 2 : bx0 - off - ds, wy - (wv % 2) * ds * 2 - ds, ds, ds);
         }
-        ctx.fillRect(bx0 + ds * 2, wy + ds, bw - ds * 4, ds);
-        drawDogAt(ctx, 0, left, Math.round(a.x * k - dw / 2), by0 - dh + ds, ds);   // 갑판 위에 선 강아지
+        ctx.fillStyle = 'rgba(255,255,255,.75)';
+        ctx.fillRect(bx0 + ds * 4, wy + ds * 2, bw - ds * 8, ds);
+        var dogY = by0 + (BOAT_DECK + 5) * ds - dh;                            // 갑판 뒤에 서서 몸만 보인다
+        drawDogAt(ctx, 1, left, Math.round(a.x * k - dw / 2), dogY, ds);
         ctx.drawImage(BOATS[left ? 1 : 0], bx0, by0, bw, bh);
-        drawBubble(Math.round(a.x * k), by0 - dh + ds - 4 * ds, by0 + bh, k);
+        drawBubble(Math.round(a.x * k), dogY - 8 * ds, by0 + bh, k);
         return;
       }
-      var bob = frame % 2 ? -ds : 0;
-      var dx = Math.round(a.x * k - dw / 2), dy = Math.round(a.y * k - dh + ds * 2 + bob);
+      var dx = Math.round(a.x * k - dw / 2), dy = Math.round(a.y * k - dh + ds * 4);
       // 발밑 그림자, 먼지
       ctx.fillStyle = 'rgba(0,0,0,.25)';
-      ctx.fillRect(dx + ds * 3, Math.round(a.y * k + ds * 2), dw - ds * 6, ds);
+      ctx.fillRect(dx + ds * 6, Math.round(a.y * k + ds * 4), dw - ds * 14, ds * 2);
       ctx.fillStyle = 'rgba(255,255,255,.85)';
-      var back = a.dx < 0 ? dx + dw : dx - ds * 2;
-      if (frame % 2 || running) ctx.fillRect(back, Math.round(a.y * k), ds * 2, ds * 2);
-      if (running) ctx.fillRect(back + (a.dx < 0 ? ds * 2 : -ds * 3), Math.round(a.y * k) - ds * 2, ds, ds);
-      drawDogAt(ctx, frame % 2, left, dx, dy, ds);
-      drawBubble(Math.round(a.x * k), dy - bob - 4 * ds, dy - bob + dh, k);   // 모자 자리까지 비워 둔다
+      var back = a.dx < 0 ? dx + dw - ds * 4 : dx;
+      if (frame % 4 === 0 || running) ctx.fillRect(back, Math.round(a.y * k + ds), ds * 3, ds * 3);
+      if (running || frame % 4 === 1) ctx.fillRect(back + (a.dx < 0 ? ds * 4 : -ds * 4), Math.round(a.y * k) - ds * 2, ds * 2, ds * 2);
+      drawDogAt(ctx, frame % 4, left, dx, dy, ds);
+      drawBubble(Math.round(a.x * k), dy - 8 * ds, dy + dh, k);   // 모자 자리까지 비워 둔다
     }
-
     /* 강아지 말풍선: 도트 테두리 흰 상자 + 강아지 쪽 꼬리. 대사는 7초마다 바뀐다.
        위에 자리가 없으면 강아지 아래에 띄운다. */
     var talk = [], TALK_MS = 7000, obstacles = [];
@@ -2473,7 +2826,7 @@ window.NB_LIBS = (function () {
     function loop(now) {
       raf = null;
       if (S.view !== 'tv' || document.hidden) return;
-      if (now - lastTick > 160) {   // 도트 느낌이 나도록 1초에 6장 정도
+      if (now - lastTick > 85) {   // 초코가 힘차게 뛰도록 1초에 12장 정도 (반짝임·물결은 2장에 한 번)
         lastTick = now; frame++;
         try { draw(); } catch (e) { window.nbShowErr('지도 그리기', e); return; }   // 오류가 나면 지도 움직임만 멈춘다
       }
@@ -2642,17 +2995,91 @@ window.NB_LIBS = (function () {
   }
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(relayout);
 
-  /* ── 지난주보다 빨라진 친구 (지난주 가장 빠른 바퀴보다 이번 주 가장 빠른 바퀴가 빠른 학생) ── */
-  function mmss(s) { s = Math.round(s); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
-  function renderFaster(list, roster) {
-    var byId = {}; (roster || []).forEach(function (p) { byId[p.id] = p; });
-    list = (list || []).filter(function (f) { return byId[f.id]; });
-    // 기록은 보여 주지 않고 이름만, 빨라진 학생 모두 (많이 빨라진 순서)
-    $('sFaster').innerHTML = list.length
-      ? list.map(function (f) { return '<span class="fchip">' + esc(byId[f.id].name) + '</span>'; }).join('')
-      : '<span class="none">이번 주에 더 빨라질 친구는 누구일까?</span>';
+  /**
+   * 칭찬 블록 (학생용 현황판에서 번갈아 보여 줌). 학생 화면(Index.html)의 미리보기 계산과 똑같이 맞춘다.
+   *  milestones: 이번 주에 누적 5km·10km·15km…를 새로 넘은 학생 [{id, km}]
+   *  records:    앞서 3번 이상 달린 학생 중, 이번 주에 자기 하루 최다 바퀴를 넘은 학생 [{id, laps}]
+   *  schoolRec:  오늘 학교 전체 바퀴가 지금까지 하루 최고를 넘었으면 {laps, prevLaps}, 아니면 null
+   */
+  function praise_(log, weekStart, today, trackM) {
+    var day = {}, tot = {}, prev = {}, school = {};
+    log.forEach(function (r) {
+      var d = day[r.id] || (day[r.id] = {});
+      d[r.date] = (d[r.date] || 0) + r.m;
+      tot[r.id] = (tot[r.id] || 0) + r.m;
+      if (r.date < weekStart) prev[r.id] = (prev[r.id] || 0) + r.m;
+      school[r.date] = (school[r.date] || 0) + r.m;
+    });
+    var STEP = 5000, milestones = [], records = [];
+    Object.keys(tot).forEach(function (id) {
+      var a = Math.floor((prev[id] || 0) / STEP), b = Math.floor(tot[id] / STEP);
+      if (b > a) milestones.push({ id: id, km: b * STEP / 1000 });
+      var before = [], wmax = 0;
+      Object.keys(day[id]).forEach(function (dt) {
+        var m = day[id][dt];
+        if (dt < weekStart) { if (m > 0) before.push(m); }
+        else if (m > wmax) wmax = m;
+      });
+      if (before.length >= 3) {
+        var pmax = Math.max.apply(null, before);
+        if (wmax > pmax) records.push({ id: id, laps: Math.round(wmax / trackM) });
+      }
+    });
+    milestones.sort(function (x, y) { return y.km - x.km; });
+    records.sort(function (x, y) { return y.laps - x.laps; });
+    var prior = Object.keys(school).filter(function (dt) { return dt < today && school[dt] > 0; }).map(function (dt) { return school[dt]; });
+    var schoolRec = null;
+    if (prior.length >= 3 && (school[today] || 0) > Math.max.apply(null, prior)) {
+      schoolRec = { laps: Math.round(school[today] / trackM), prevLaps: Math.round(Math.max.apply(null, prior) / trackM) };
+    }
+    return { milestones: milestones, records: records, schoolRec: schoolRec };
   }
 
+  /* ── 지난주보다 빨라진 친구 (지난주 가장 빠른 바퀴보다 이번 주 가장 빠른 바퀴가 빠른 학생) ── */
+  function mmss(s) { s = Math.round(s); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
+  // 학년 숫자 (없으면 맨 뒤)
+  function gradeNum(p) { var g = parseInt(String((p && p.grade) || '').replace(/[^0-9]/g, ''), 10); return g >= 1 && g <= 6 ? g : 9; }
+  function lightCol(hex, t) {
+    var n = parseInt(hex.slice(1), 16), m = function (v) { return Math.round(t >= 0 ? v + (255 - v) * t : v * (1 + t)); };   // t<0이면 어둡게
+    return 'rgb(' + m(n >> 16) + ',' + m(n >> 8 & 255) + ',' + m(n & 255) + ')';
+  }
+  // 이름 칩: 학년 색 연한 배경 + 학년 색 테두리, 글자는 검정
+  // 이름 카드: QR 카드처럼 신용카드 비율(85.6:54), 연한 학년 색 배경 + 진한 테두리, 가운데 이름, 아래 기록
+  function gradeChip(p, tail) {
+    var c = GRADE_COLORS[gradeNum(p)] || '#9AA39E';
+    return '<span class="ncard" style="background:' + lightCol(c, .8) + ';border-color:' + c + '"><span class="in">' +
+      '<span class="nm">' + esc(p.name) + '</span>' + (tail ? '<span class="tl" style="color:' + lightCol(c, -.3) + '">' + esc(tail) + '</span>' : '') + '</span></span>';
+  }
+  function renderPraise(d, roster) {
+    var byId = {}; (roster || []).forEach(function (p) { byId[p.id] = p; });
+    var pr = d.praise || {}, chips = function (list, tail) {
+      // 학년별로 모아서(1→6학년, 같은 학년 안에서는 원래 순서), QR 카드와 같은 학년 색
+      var items = list.filter(function (f) { return byId[f.id]; }).map(function (f, i) { return { f: f, i: i, g: gradeNum(byId[f.id]) }; });
+      items.sort(function (a, b) { return (a.g - b.g) || (a.i - b.i); });
+      return '<div class="faster ncards">' + items.map(function (it) {
+        return gradeChip(byId[it.f.id], tail ? tail(it.f) : '');
+      }).join('') + '</div>';
+    };
+    var has = function (list) { return (list || []).some(function (f) { return byId[f.id]; }); };
+    var panes = [];
+    // 빨라진 친구: 이름 + 몇 초 빨라졌는지 (없으면 응원 문구), 항상 한 판
+    var fasterTxt = function (f) { var s = Math.round((f.last || 0) - (f.now || 0)); if (s < 1) return ''; return (s >= 60 ? Math.floor(s / 60) + '분 ' + (s % 60 ? s % 60 + '초' : '') : s + '초').trim() + ' 빨라짐'; };
+    panes.push('<h3>지난주보다 빨라진 친구</h3>' + (has(d.faster) ? chips(d.faster, fasterTxt) : '<div class="faster"><span class="none">이번 주에 더 빨라질 친구는 누구일까?</span></div>'));
+    if (has(pr.milestones)) panes.push('<h3>' + emo('🏅') + ' 지금까지 이만큼 달렸어요! <small>5km를 넘을 때마다 이름이 나와요</small></h3>' + chips(pr.milestones, function (f) { return f.km + 'km'; }));
+    if (has(pr.records)) panes.push('<h3>' + emo('💪') + ' 내 기록을 깬 친구</h3>' + chips(pr.records, function (f) { return f.laps + '바퀴'; }));
+    if (pr.schoolRec) panes.push('<h3>' + emo('🎉') + ' 우리 학교 신기록!</h3><div class="rec">오늘 우리 학교가 <b>' + pr.schoolRec.laps.toLocaleString('ko-KR') +
+      '</b>바퀴를 달렸어요! 지금까지 하루 최고 ' + pr.schoolRec.prevLaps.toLocaleString('ko-KR') + '바퀴를 넘었어요.</div>');
+    $('sPraise').innerHTML = panes.map(function (h, i) { return '<div class="pane' + (i === praiseIdx % panes.length ? ' on' : '') + '">' + h + '</div>'; }).join('');
+    $('sPraiseDots').innerHTML = panes.length > 1 ? panes.map(function (h, i) { return '<i' + (i === praiseIdx % panes.length ? ' class="on"' : '') + '></i>'; }).join('') : '';
+  }
+  // 10초마다 다음 판으로
+  var praiseIdx = 0;
+  setInterval(function () {
+    var ps = document.querySelectorAll('#sPraise .pane'), ds = document.querySelectorAll('#sPraiseDots i');
+    if (ps.length < 2 || document.hidden) return;
+    praiseIdx = (praiseIdx + 1) % ps.length;
+    for (var i = 0; i < ps.length; i++) { ps[i].classList.toggle('on', i === praiseIdx); if (ds[i]) ds[i].classList.toggle('on', i === praiseIdx); }
+  }, 10000);
   /* ── 옆 칸: 학년별, 이번 주 친구 ── */
   function renderSide(roster, per, trackM) {
     var grades = {};
@@ -3256,7 +3683,7 @@ window.NB_LIBS = (function () {
         var faster = [];
         Object.keys(best).forEach(function (id) { var b = best[id]; if (b.last && b.now && b.now < b.last - 0.5) faster.push({ id: id, last: Math.round(b.last), now: Math.round(b.now) }); });
         faster.sort(function (a, b) { return (b.last - b.now) - (a.last - a.now); });
-        return { url: '', roster: roster, route: route, settings: settings, per: per, faster: faster, sessions: Object.keys(dates).length,
+        return { url: '', roster: roster, route: route, settings: settings, per: per, faster: faster, praise: praise_(log, ws, td, settings.trackM), sessions: Object.keys(dates).length,
           weekStart: ws, updated: (now.getMonth() + 1) + '월 ' + now.getDate() + '일 ' + ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2) };
       },
       getRoster: function () { return { url: '', roster: roster }; },
