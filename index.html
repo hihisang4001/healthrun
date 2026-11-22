@@ -93,6 +93,40 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--turf); outline-
 }
 .field input:focus { outline: none; border-color: var(--turf); }
 .linkbtn { border: 0; background: none; padding: 0; color: var(--turf); font-weight: 700; font-size: 14px; text-decoration: underline; }
+/* 시작 화면 아래 교사용 정보 카드 (날씨 · 전국 일주) */
+#startPanel { max-width: 640px; }
+.sc { background: var(--card); border: 1.5px solid var(--rule); border-radius: 18px; padding: 16px 18px; display: grid; gap: 12px; }
+.sc-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.sc-head b { font-size: 17px; }
+.sc-head span { font-size: 13px; color: var(--ink-soft); }
+.sw-now { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sw-big { display: flex; align-items: center; gap: 12px; }
+.sw-big img.emo { width: 56px; height: 56px; }
+.sw-big .t { font-family: var(--display); font-size: 46px; line-height: 1; }
+.sw-big small { display: block; font-size: 15px; font-weight: 700; color: var(--ink-soft); }
+.sw-side { text-align: right; font-size: 15px; line-height: 1.6; color: var(--ink-soft); }
+.sw-side b { color: var(--ink); }
+.sw-rows { display: grid; gap: 6px; }
+.sw-row { display: flex; justify-content: space-between; align-items: center; font-size: 16px; padding: 6px 0; border-top: 1px dashed var(--rule); }
+.sw-row b { font-variant-numeric: tabular-nums; }
+.gr { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 14px; margin-left: 8px; color: #fff; }
+.gr1 { background: #1E7BD8; } .gr2 { background: #2E9E5B; } .gr3 { background: #E08A00; } .gr4 { background: #C62828; }
+.sw-air { font-size: 12px; color: var(--ink-soft); text-align: right; margin-top: -6px; }
+.sw-rec { border-radius: 12px; padding: 10px 14px; font-weight: 700; font-size: 16px; }
+.sw-rec.gym { background: #EBE3F8; color: #5B3A9A; }
+.sw-rec.track { background: #E3F4E8; color: #1E6B3A; }
+.sw-rec small { display: block; font-weight: 500; font-size: 13px; }
+.st-row { display: flex; align-items: center; gap: 14px; }
+.st-pic img.emo { width: 52px; height: 52px; display: block; }
+.st-lbl { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+.st-name { font-family: var(--display); font-size: 32px; line-height: 1.1; }
+.st-left { font-size: 16px; font-weight: 700; }
+.st-left b { color: var(--track); font-size: 1.2em; margin: 0 3px; }
+.st-bar { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; color: var(--ink-soft); padding-top: 34px; }
+.st-bar .bar { position: relative; height: 14px; background: var(--turf-soft); border-radius: 999px; }
+.st-bar .bar i { position: absolute; top: 0; bottom: 0; left: 0; background: var(--turf); border-radius: 999px; }
+.st-bar .runner { position: absolute; top: 50%; transform: translate(-39%, -92%); line-height: 1; }
+.stdog { display: block; width: 76px; height: auto; image-rendering: pixelated; }
 
 /* ── 체크 화면: 실행 ── */
 .run { position: fixed; top: 0; right: 0; bottom: 0; left: 0; display: grid; grid-template-rows: auto auto 1fr auto; background: var(--paper); }
@@ -752,6 +786,39 @@ tr:last-child td { border-bottom: 0; }
         <button type="button" class="linkbtn" id="cfgLink" hidden>연결 설정 바꾸기</button>
         <span id="verInfo"></span>
       </div>
+
+      <!-- 교사용 정보: 오늘 날씨(강당 자동 선택) + 전국 일주 -->
+      <div class="sc" id="scWx">
+        <div class="sc-head"><b>보은 날씨</b><span id="swAt">불러오는 중…</span></div>
+        <div class="sw-now">
+          <div class="sw-big" id="swBig"></div>
+          <div class="sw-side" id="swSide"></div>
+        </div>
+        <div class="sw-rows">
+          <div class="sw-row"><span>8시 30분~9시 비 올 확률</span><b id="swPop">–</b></div>
+          <div class="sw-row"><span>미세먼지</span><b id="swPm10">–</b></div>
+          <div class="sw-row"><span>초미세먼지</span><b id="swPm25">–</b></div>
+        </div>
+        <div class="sw-air" id="swAir"></div>
+        <div class="sw-rec" id="swRec" hidden></div>
+      </div>
+
+      <div class="sc" id="scTrip">
+        <div class="sc-head"><b>우리 학교 전국 일주</b><span id="stTotal"></span></div>
+        <div class="st-row">
+          <div class="st-pic" id="stPic" aria-hidden="true"></div>
+          <div>
+            <div class="st-lbl" id="stLbl">다음 목표</div>
+            <div class="st-name" id="stName">–</div>
+            <div class="st-left" id="stLeft"></div>
+          </div>
+        </div>
+        <div class="st-bar">
+          <span id="stFrom"></span>
+          <div class="bar"><i id="stFill" style="width:0"></i><span class="runner" id="stRunner" style="left:0" aria-hidden="true"><img class="stdog" id="stDog" alt=""></span></div>
+          <span id="stTo"></span>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1028,7 +1095,7 @@ window.NB_LIBS = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '91';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '92';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -1190,6 +1257,7 @@ window.NB_LIBS = (function () {
     $('goBtn').addEventListener('click', startRun);
     bindHoldToStop($('stopBtn'));
     updateQueueInfo();
+    try { if (window.nbStartWeather) window.nbStartWeather(); } catch (e) {}   // 시작 화면 날씨 카드 + 강당 자동 선택
     if (new Date().getFullYear() < 2026) {
       showErr('휴대폰 날짜가 ' + new Date().toLocaleDateString('ko-KR') + '로 되어 있어요. 설정에서 날짜와 시간을 "자동"으로 맞춰 주세요.');
     }
@@ -1267,6 +1335,7 @@ window.NB_LIBS = (function () {
     $('rosterInfo').textContent = '명단 ' + S.roster.length + '명';
     $('goBtn').disabled = S.roster.length === 0;
     $('goBtn').textContent = S.roster.length ? '체크 시작' : '명단이 비어 있어요';
+    try { if (window.nbStartTrip) window.nbStartTrip(); } catch (e) {}
   }
 
   function saveSnap() { save('nb_snap', { totals: S.totals, today: S.today, date: S.todayDate }); }
@@ -1277,7 +1346,11 @@ window.NB_LIBS = (function () {
       b.addEventListener('click', function () {
         Array.prototype.forEach.call(btns, function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
         S[key] = b.getAttribute(key === 'place' ? 'data-place' : 'data-cam');
-        if (key === 'place') save('nb_place', S.place);
+        if (key === 'place') {
+          save('nb_place', S.place);
+          save('nb_place_manual', todayStr());   // 오늘은 선생님이 직접 골랐으니 날씨로 바꾸지 않는다
+          if (window.nbStartRec) window.nbStartRec();
+        }
       });
     });
   }
@@ -3204,6 +3277,140 @@ window.NB_LIBS = (function () {
       wxNow = { kind: info[3], temp: t }; applyOutfit();
     }, function () { if (S.sceneWx == null) S.sceneWx = ''; });
   };
+
+  /* ════════ 체크 시작 화면: 교사용 날씨 카드 + 강당 자동 선택 ════════
+     날씨·체감온도·바람·8시 30분~9시 강수확률은 Open-Meteo, 미세먼지는 에어코리아 측정값(Apps Script가 대신 받음).
+     아래 중 하나라도 해당하면 강당을 미리 고른다: 지금 비·눈 / 9시 강수확률 60% 이상 / 미세먼지·초미세먼지 나쁨 이상 / 체감온도 영하.
+     오늘 선생님이 장소를 직접 눌렀으면 바꾸지 않고, 날씨를 못 받으면 고르지 않는다. */
+  var SW = { wx: null, air: null, wxFail: false, airDone: false };
+  // 에어코리아 등급 기준(㎍/㎥): 1 좋음, 2 보통, 3 나쁨, 4 매우나쁨
+  function pmGrade(v, pm25) {
+    if (v == null) return null;
+    var cut = pm25 ? [15, 35, 75] : [30, 80, 150];
+    return v <= cut[0] ? 1 : v <= cut[1] ? 2 : v <= cut[2] ? 3 : 4;
+  }
+  var GR_NAME = ['', '좋음', '보통', '나쁨', '매우나쁨'];
+  function pmHTML(v, g) {
+    if (v == null) return '측정 없음';
+    return v + '㎍/㎥<span class="gr gr' + g + '">' + GR_NAME[g] + '</span>';
+  }
+  function setPlaceAuto(p) {
+    S.place = p;
+    $('placeTrack').setAttribute('aria-pressed', p === '운동장' ? 'true' : 'false');
+    $('placeGym').setAttribute('aria-pressed', p === '강당' ? 'true' : 'false');
+    save('nb_place', p);
+  }
+  function startRec() {
+    var box = $('swRec');
+    if (!SW.wx) { box.hidden = true; return; }
+    var w = SW.wx, why = [];
+    if (w.kind === 'rain' || w.kind === 'snow' || w.kind === 'storm') why.push('지금 ' + w.label);
+    if (w.pop != null && w.pop >= 60) why.push('9시 비 확률 ' + w.pop + '%');
+    if (SW.air && SW.air.ok) {
+      if (SW.air.g10 >= 3) why.push('미세먼지 ' + GR_NAME[SW.air.g10]);
+      if (SW.air.g25 >= 3) why.push('초미세먼지 ' + GR_NAME[SW.air.g25]);
+    }
+    if (w.feel != null && w.feel < 0) why.push('체감 ' + w.feel + '℃');
+    var want = why.length ? '강당' : '운동장';
+    var manual = load('nb_place_manual', '') === todayStr();
+    if (!manual && !S.running) setPlaceAuto(want);
+    box.hidden = false;
+    box.className = 'sw-rec ' + (want === '강당' ? 'gym' : 'track');
+    var head = want === '강당' ? '강당을 추천해요' : '운동장에서 달려도 좋아요';
+    var sub = why.length ? why.join(' · ') : '비·미세먼지·추위 모두 괜찮아요';
+    if (manual && S.place !== want) sub += ' (오늘은 선생님이 ' + josaRo(S.place) + ' 골랐어요)';
+    else if (!manual) sub += ' → ' + josaRo(want) + ' 골라 두었어요';
+    if (!SW.airDone || !(SW.air && SW.air.ok)) sub += ' · 미세먼지는 빼고 판단';
+    box.innerHTML = '→ ' + head + '<small>' + esc(sub) + '</small>';
+  }
+  window.nbStartRec = function () { try { startRec(); } catch (e) {} };
+  function renderStartWx() {
+    var w = SW.wx;
+    if (!w) {
+      $('swAt').textContent = SW.wxFail ? '날씨를 받지 못했어요' : '불러오는 중…';
+      $('swBig').innerHTML = SW.wxFail ? '<small>인터넷 연결을 확인해 주세요. 장소는 직접 골라 주세요.</small>' : '';
+      $('swSide').innerHTML = '';
+      $('swPop').textContent = '–';
+    } else {
+      $('swAt').textContent = w.at + ' 기준';
+      $('swBig').innerHTML = emo(w.emoji) + '<div><span class="t">' + w.temp + '°</span><small>' + esc(w.label) + '</small></div>';
+      $('swSide').innerHTML = '체감 <b>' + w.feel + '°</b><br>바람 <b>' + w.wind + 'm/s</b>';
+      $('swPop').textContent = w.pop == null ? '–' : w.pop + '%';
+    }
+    var a = SW.air;
+    if (!SW.airDone) { $('swPm10').textContent = '불러오는 중…'; $('swPm25').textContent = ''; $('swAir').textContent = ''; }
+    else if (a && a.ok) {
+      $('swPm10').innerHTML = pmHTML(a.pm10, a.g10);
+      $('swPm25').innerHTML = pmHTML(a.pm25, a.g25);
+      $('swAir').textContent = '에어코리아 ' + a.station + ' 측정소 · ' + (a.time || '').slice(11) + ' 측정값';
+    } else {
+      var why = a && a.reason === 'nokey' ? '준비 중 (에어코리아 인증키를 넣으면 나와요)'
+        : a && a.reason === 'oldserver' ? '준비 중 (Code.gs 새 버전 배포가 필요해요)'
+        : a && a.reason === 'nostation' ? '측정소를 찾지 못했어요' : '받지 못했어요';
+      $('swPm10').textContent = why; $('swPm25').textContent = '–'; $('swAir').textContent = '';
+    }
+    startRec();
+  }
+  window.nbStartWeather = function () {
+    SW.wx = null; SW.air = null; SW.wxFail = false; SW.airDone = false;
+    renderStartWx();
+    var q = 'latitude=' + WX_LAT + '&longitude=' + WX_LON + '&timezone=Asia%2FSeoul';
+    getJSON('https://api.open-meteo.com/v1/forecast?' + q + '&forecast_days=1&wind_speed_unit=ms' +
+      '&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m&hourly=precipitation_probability').then(function (d) {
+      var cur = d.current || {}, info = wxInfo(cur.weather_code), h = d.hourly || {}, pop = null;
+      // 9시 값 = 8~9시 사이에 비가 올 확률
+      (h.time || []).forEach(function (t, i) { if (/T09:00$/.test(t)) pop = h.precipitation_probability[i]; });
+      var now = new Date();
+      SW.wx = {
+        temp: Math.round(cur.temperature_2m), feel: Math.round(cur.apparent_temperature),
+        wind: Math.round((cur.wind_speed_10m || 0) * 10) / 10, kind: info[3], label: info[1], emoji: info[2], pop: pop,
+        at: ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2)
+      };
+      // 결과 카드 풍경과 초코 착장도 같은 날씨로
+      save('nb_wx', { kind: info[3], temp: SW.wx.temp, at: Date.now() });
+      S.sceneWx = info[3] === 'storm' ? 'rain' : info[3];
+      wxNow = { kind: info[3], temp: SW.wx.temp }; applyOutfit();
+    }, function () { SW.wxFail = true; }).then(renderStartWx);
+    (MODE === 'demo' || MODE === 'api' || MODE === 'gas' ? call('getAir') : Promise.reject()).then(function (a) {
+      SW.air = a || null;
+      if (SW.air && SW.air.ok) { SW.air.g10 = SW.air.g10 || pmGrade(SW.air.pm10, false); SW.air.g25 = SW.air.g25 || pmGrade(SW.air.pm25, true); }
+    }, function (e) {
+      // 예전 Code.gs는 getAir를 몰라서 '알 수 없는 요청'이라고 답한다
+      SW.air = /알 수 없는|getAir|is not a function/.test(String(e && e.message || e)) ? { ok: false, reason: 'oldserver' } : null;
+    }).then(function () { SW.airDone = true; renderStartWx(); });
+  };
+  /* 미리보기 시험: nbAirTest(90, 40) → 미세먼지 나쁨으로 다시 판단 */
+  window.nbAirTest = function (pm10, pm25) { window.NB_DEMO_AIR = { pm10: pm10, pm25: pm25 }; save('nb_place_manual', ''); window.nbStartWeather(); };
+
+  /* ════════ 체크 시작 화면: 전국 일주 카드 (달리는 초코) ════════ */
+  window.nbStartTrip = function () {
+    var route = S.route || [];
+    if (route.length < 2) { $('scTrip').hidden = true; return; }
+    $('scTrip').hidden = false;
+    var total = schoolM() / 1000, loop = route[route.length - 1].km || 1;
+    var round = Math.floor(total / loop), pos = total - round * loop;
+    var ni = 1;
+    while (ni < route.length - 1 && route[ni].km <= pos) ni++;
+    var prev = route[ni - 1], next = route[ni];
+    var pct = Math.max(0, Math.min(1, (pos - prev.km) / Math.max(1e-9, next.km - prev.km))) * 100;
+    $('stTotal').textContent = '누적 ' + fmtKm(total * 1000) + 'km';
+    $('stPic').innerHTML = emo(placeEmoji(next.name));
+    $('stLbl').textContent = round > 0 ? (round + 1) + '번째 여행 · 다음 목표' : '다음 목표';
+    $('stName').textContent = next.name;
+    $('stLeft').innerHTML = '앞으로<b class="num">' + Math.max(0.1, next.km - pos).toFixed(1) + '</b>km';
+    $('stFrom').textContent = prev.name;
+    $('stTo').textContent = next.name;
+    $('stFill').style.width = pct.toFixed(1) + '%';
+    $('stRunner').style.left = pct.toFixed(1) + '%';
+  };
+  (function () {
+    var f = 0;
+    setInterval(function () {
+      var img = $('stDog');
+      if (!img || S.view !== 'check' || $('startPanel').hidden || document.hidden || !dogURLs.length) return;
+      f = (f + 1) % DOG_FRAMES_N; img.src = dogURLs[f];
+    }, 110);
+  })();
   function renderWeather(w) {
     var cur = w.current || {}, day = w.daily || {};
     var info = wxInfo(cur.weather_code);
@@ -4088,6 +4295,11 @@ window.NB_LIBS = (function () {
           }
         });
         return { url: '', roster: roster, settings: settings, route: route, today: today, todayDate: td, totals: totals };
+      },
+      // 미리보기용 미세먼지 (실제는 에어코리아 측정값). nbAirTest(pm10, pm25)로 바꿔 볼 수 있다
+      getAir: function () {
+        var a = window.NB_DEMO_AIR || { pm10: 34, pm25: 14 };
+        return { ok: true, station: '보은읍', time: dstr(new Date()) + ' 08:00', pm10: a.pm10, pm25: a.pm25, g10: null, g25: null };
       },
       record: function (items) {
         items.forEach(function (it) {
