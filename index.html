@@ -1021,7 +1021,7 @@ window.NB_LIBS = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '81';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '82';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -1436,7 +1436,7 @@ window.NB_LIBS = (function () {
   /* 결과 카드: 찍힐 때마다 카드 한 장. 최대 4장, 각 3초 뒤 흐려지며 사라진다.
      1장 = 카메라 위 전체 / 2장 = 반 높이 2장(카메라 그대로) / 3장 = 반 높이 3장(카메라를 한 장만큼 줄임) / 4장 = 카메라를 숨기고 전체 화면.
      새 카드는 아래(카메라 쪽)에서 올라오며 앞 카드를 밀어 올린다 */
-  var CARD_MS = 3000, CARD_MAX = 4;
+  var CARD_MS = 5000, CARD_GAP_MS = 1000, CARD_MAX = 4;   // 카드는 5초, 앞 카드가 사라진 뒤에도 1초는 남는다
   function feedback(kind, big, sub, badge, info) {
     info = info || {};
     var st = $('fbStack');
@@ -1459,15 +1459,29 @@ window.NB_LIBS = (function () {
     card.style.opacity = '';
     layoutCards();
     startDogAnim();
-    card._t = setTimeout(function () { removeCard(card); }, CARD_MS);
+    card._born = Date.now();
+    scheduleCards();
+  }
+  /* 사라지는 시각: 각 카드는 나온 뒤 5초, 그리고 바로 앞(위) 카드가 사라진 뒤 최소 1초 — 위에서부터 차례로 사라진다 */
+  function scheduleCards() {
+    var cards = Array.prototype.filter.call($('fbStack').querySelectorAll('.card'), function (c) { return !c.classList.contains('out'); });
+    var now = Date.now(), prev = (S.lastGone || 0) + CARD_GAP_MS;
+    cards.forEach(function (c) {
+      var due = Math.max(c._born + CARD_MS, prev);
+      clearTimeout(c._t);
+      c._t = setTimeout(function () { removeCard(c); }, Math.max(0, due - now));
+      prev = due + CARD_GAP_MS;
+    });
   }
   function removeCard(card, now) {
     if (!card || card.classList.contains('out')) return;
     clearTimeout(card._t);
     card.classList.add('out');
+    S.lastGone = Date.now();
     card.style.height = '0px'; card.style.opacity = '0'; card.style.marginTop = card.style.marginBottom = '0px';
     layoutCards();
     setTimeout(function () { if (card.parentNode) card.parentNode.removeChild(card); layoutCards(); }, now ? 0 : 450);
+    scheduleCards();   // 남은 카드는 지금부터 최소 1초 더
   }
   // 카드 수에 맞춰 카드 높이·카메라 크기를 정한다
   function layoutCards() {
@@ -4010,7 +4024,7 @@ window.NB_LIBS = (function () {
       kids.forEach(function (k, i) { setTimeout(function () { feedback(k[1], k[0], k[3] || '', '', k[2]); }, i * 600); });
     }
     round();
-    setInterval(round, 8000);   // 4명이 찍고(약 3초) → 카드가 사라지고(약 3초) → 다시
+    setInterval(round, 14000);   // 4명이 찍고 → 5초 뒤부터 1초 간격으로 차례로 사라지고 → 다시
   }
   if (location.hash === '#checkdemo') setTimeout(runCheckDemo, 600);
 
