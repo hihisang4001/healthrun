@@ -1021,7 +1021,7 @@ window.NB_LIBS = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '83';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '84';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -1279,6 +1279,8 @@ window.NB_LIBS = (function () {
 
   function startRun() {
     showErr('');
+    // 갤럭시탭 크롬: 주소창·아래 버튼 줄을 숨기고 화면 전체를 쓴다 (안 되면 그냥 넘어감)
+    try { var de = document.documentElement; if (de.requestFullscreen && !document.fullscreenElement) de.requestFullscreen({ navigationUI: 'hide' }).catch(function () {}); } catch (e) {}
     try {
       var AC = window.AudioContext || window.webkitAudioContext;
       if (AC && !S.audio) S.audio = new AC();
@@ -1338,6 +1340,7 @@ window.NB_LIBS = (function () {
       $('topbar').hidden = false;
       $('demoNote').hidden = MODE !== 'demo';
       if (S.wake) { try { S.wake.release(); } catch (e) {} S.wake = null; }
+      try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(function () {}); } catch (e) {}
       updateQueueInfo();
     };
     if (S.scanner && S.running) S.scanner.stop().then(done, done);
