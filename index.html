@@ -470,6 +470,14 @@ body.tv .gb-head .map-zoom { font-size: clamp(14px, 1.9vmin, 30px); }
 .kpi .v { font-size: 28px; font-weight: 900; line-height: 1.25; }
 .kpi .v small { font-size: 14px; font-weight: 700; color: var(--ink-soft); margin-left: 3px; }
 .kpi .s { font-size: 12px; color: var(--ink-soft); }
+/* 지난 기간과 비교: ▲ 늘었음(초록) ▼ 줄었음(빨강) */
+.kpi .dlt { display: block; font-size: 12px; font-weight: 700; margin-top: 2px; }
+.kpi .dlt.up { color: #1E6B3A; } .kpi .dlt.dn { color: #B3261E; } .kpi .dlt.eq { color: var(--ink-soft); }
+/* 학생 상세: 처음 한 달 vs 최근 한 달 */
+.grow { width: 100%; border-collapse: collapse; margin: -6px 0 16px; font-size: 14px; }
+.grow th, .grow td { padding: 7px 10px; border-bottom: 1px solid var(--rule); text-align: right; }
+.grow th:first-child, .grow td:first-child { text-align: left; }
+.grow thead th { font-size: 12px; color: var(--ink-soft); }
 .t-split { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 900px) { .t-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -523,6 +531,9 @@ table.att { min-width: 0; width: auto; font-size: 13px; border-collapse: separat
 .att td.x { background: #FDE2DF; color: #B3261E; }
 .att td.o { background: #FFF4C2; color: #6B4E00; font-size: 11px; }
 .att tfoot td { font-size: 12px; color: var(--ink-soft); padding: 6px 2px; background: #FAFBF8; }
+.att td.y.gym { background: #EBE3F8; color: #5B3A9A; }   /* 강당에서 달린 날 */
+.plc { display: inline-block; font-size: 10px; line-height: 1; padding: 2px 3px; border-radius: 4px; margin-top: 2px; font-weight: 900; }
+.plc.t { background: #DDEFE2; color: #1E6B3A; } .plc.g { background: #EBE3F8; color: #5B3A9A; }
 .chart svg { max-width: 100%; height: auto; display: block; }
 .chart .empty-txt { padding: 8px 0; }
 dialog.t-dlg { border: 0; border-radius: 20px; padding: 0; width: min(780px, 94vw); max-height: 90vh; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
@@ -807,6 +818,7 @@ tr:last-child td { border-bottom: 0; }
       <div class="t-period" id="tPeriod">
         <button type="button" data-p="today">오늘</button>
         <button type="button" data-p="week">이번 주</button>
+        <button type="button" data-p="lastweek">지난주</button>
         <button type="button" data-p="month">이번 달</button>
         <button type="button" data-p="sem1">1학기</button>
         <button type="button" data-p="sem2">2학기</button>
@@ -823,10 +835,8 @@ tr:last-child td { border-bottom: 0; }
             <div class="tablebox"><table class="t-tbl" id="tGrades"></table></div>
           </div>
           <div>
-            <h3 id="tChartTitle">참여율</h3>
+            <h3 id="tChartTitle">참여율과 하루 1인 평균</h3>
             <div class="chart" id="tChartRate"></div>
-            <h3 id="tChartTitle2" style="margin-top:14px">1인 평균 바퀴</h3>
-            <div class="chart" id="tChartLaps"></div>
           </div>
         </div>
       </section>
@@ -843,6 +853,8 @@ tr:last-child td { border-bottom: 0; }
           <span><i style="background:#E3F4E8;border:1px solid #9CCFAE"></i>출석</span>
           <span><i style="background:#FDE2DF;border:1px solid #F0A79E"></i>결석</span>
           <span><i style="background:#FFF4C2;border:1px solid #E6CF6A"></i>기타 (출석부에 직접 적은 말)</span>
+          <span><i style="background:#EBE3F8;border:1px solid #B9A3E3"></i>강당에서 달림</span>
+          <span><b class="plc t">운</b> 운동장 <b class="plc g">강</b> 강당 (날짜 아래)</span>
         </div>
         <div class="att-scroll" id="tAttBox"><table class="att" id="tAtt"></table></div>
       </section>
@@ -856,6 +868,7 @@ tr:last-child td { border-bottom: 0; }
         <button type="button" class="t-btn" id="dClose">닫기</button>
       </header>
       <div class="kpis" id="dKpis"></div>
+      <div id="dGrowth"></div>
       <h3 id="dChartTitle">날짜별 바퀴</h3>
       <div class="chart" id="dChart"></div>
       <h3 id="dPaceTitle" style="margin-top:14px">페이스 변화</h3>
@@ -943,7 +956,7 @@ window.NB_LIBS = (function () {
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
   var MILESTONE_M = 10000;
-  var APP_VER = '64';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '66';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -3043,14 +3056,15 @@ window.NB_LIBS = (function () {
       '<span class="nm">' + esc(p.name) + '</span>' + (tail ? '<span class="tl" style="color:' + lightCol(c, -.3) + '">' + esc(tail) + '</span>' : '') + '</span></span>';
   }
   /* ── 오늘 카드의 학교 신기록 ──
-     오늘 기록이 있으면 '신기록까지 ○바퀴', 학교 하루 최고를 넘으면 그날 하루 종일 금색 카드 + 리본,
+     오늘 기록이 없으면 '최고기록 ○바퀴', 있으면 '신기록까지 ○바퀴', 학교 하루 최고를 넘으면 그날 하루 종일 금색 카드 + 리본,
      카드 위 도트 폭죽 3초는 넘는 순간과 그날 15분마다 */
   var recBurstAt = 0, recWas = null;
   function renderRecord(best, todayM, trackM) {
     var card = $('sTodayCard'), sub = $('sTodaySub');
     var isRec = !!(best && todayM > best.m);
     card.classList.toggle('rec', isRec);
-    if (!best || todayM <= 0) sub.textContent = '';
+    if (!best) sub.textContent = '';
+    else if (todayM <= 0) sub.textContent = '최고기록 ' + lapsTxt(best.m / trackM) + '바퀴';   // 달리지 않는 날·첫 바퀴 전
     else if (isRec) sub.textContent = '이전 최고 ' + lapsTxt(best.m / trackM) + '바퀴';
     else sub.textContent = '신기록까지 ' + Math.max(1, Math.ceil((best.m - todayM) / trackM + 1e-9)) + '바퀴';
     var now = Date.now();
@@ -3235,7 +3249,7 @@ window.NB_LIBS = (function () {
   /* ════════ 교사용 현황판 ════════ */
   var T = { data: null, period: 'week', grade: 'all', sort: { key: 'no', dir: 1 }, ready: false, dlgId: '' };
   var WD = '일월화수목금토';
-  var PERIOD_NAME = { today: '오늘', week: '이번 주', month: '이번 달', sem1: '1학기', sem2: '2학기', all: '전체' };
+  var PERIOD_NAME = { today: '오늘', week: '이번 주', lastweek: '지난주', month: '이번 달', sem1: '1학기', sem2: '2학기', all: '전체' };
   function pd(s) { var p = s.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); }
   function ds(d) { var p = function (n) { return ('0' + n).slice(-2); }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
   function addDays(s, n) { var d = pd(s); d.setDate(d.getDate() + n); return ds(d); }
@@ -3254,6 +3268,7 @@ window.NB_LIBS = (function () {
     var s2 = T.data.sem2 && schoolYear(T.data.sem2) === sy ? T.data.sem2 : sy + '-08-16';
     if (p === 'today') return [today, today];
     if (p === 'week') return [weekOf(today), today];
+    if (p === 'lastweek') return [addDays(weekOf(today), -7), addDays(weekOf(today), -1)];
     if (p === 'month') return [today.slice(0, 8) + '01', today];
     if (p === 'sem1') return [sy + '-03-01', addDays(s2, -1)];
     if (p === 'sem2') return [s2, (sy + 1) + '-02-31'];
@@ -3311,9 +3326,59 @@ window.NB_LIBS = (function () {
     var p = Math.round(r * 100);
     return '<span class="rate' + (p < 70 ? ' low' : '') + '"><i><b style="width:' + p + '%"></b></i><span class="num">' + p + '%</span></span>';
   }
-  function kpi(l, v, unit, sub) {
+  function kpi(l, v, unit, sub, extra) {
     return '<div class="kpi"><div class="l">' + l + '</div><div class="v num">' + v + (unit ? '<small>' + unit + '</small>' : '') + '</div>' +
-      (sub ? '<div class="s">' + sub + '</div>' : '') + '</div>';
+      (sub ? '<div class="s">' + sub + '</div>' : '') + (extra || '') + '</div>';
+  }
+  // 지난 기간과 비교 한 줄: ▲ 늘었음 / ▼ 줄었음 / – 같음
+  function dlt(v, unit, label) {
+    if (v == null || isNaN(v)) return '';
+    var r = Math.round(v * 10) / 10, cls = r > 0 ? 'up' : r < 0 ? 'dn' : 'eq';
+    var txt = r === 0 ? '– 같음' : (r > 0 ? '▲ ' : '▼ ') + (Math.abs(r) % 1 ? Math.abs(r).toFixed(1) : Math.abs(r)) + unit;
+    return '<span class="dlt ' + cls + '">' + txt + ' <span style="font-weight:500">' + label + '</span></span>';
+  }
+  // 기간의 참여율(%)과 하루 1인 평균(바퀴)
+  function periodMetrics(dates) {
+    var roster = T.data.roster || [], Y = 0, O = 0, M = 0;
+    roster.forEach(function (p) { dates.forEach(function (dt) { var st = dayStatus(p.id, dt); if (st.k === 'y') Y++; if (st.k === 'o') O++; M += st.m; }); });
+    var possible = dates.length * roster.length - O;
+    return { n: dates.length, rate: possible > 0 ? Y / possible * 100 : null, dayAvg: Y ? lapsOf(M) / Y : null };
+  }
+  // 비교할 앞 기간: 오늘 → 지난 활동일, 이번 주 → 지난주, 지난주 → 그 전 주, 이번 달 → 지난달 (학기·전체는 없음)
+  function prevPeriod(p) {
+    var all = allDates(), today = T.data.today, wk = weekOf(today), inR = function (a, b) { return all.filter(function (x) { return x >= a && x <= b; }); };
+    if (p === 'today') { var before = all.filter(function (x) { return x < today; }); return before.length ? { dates: before.slice(-1), label: '지난 활동일보다' } : null; }
+    if (p === 'week') return { dates: inR(addDays(wk, -7), addDays(wk, -1)), label: '지난주보다' };
+    if (p === 'lastweek') return { dates: inR(addDays(wk, -14), addDays(wk, -8)), label: '그 전 주보다' };
+    if (p === 'month') { var end = addDays(today.slice(0, 8) + '01', -1); return { dates: inR(end.slice(0, 8) + '01', end), label: '지난달보다' }; }
+    return null;
+  }
+  // 막대(참여율) + 선(하루 1인 평균 바퀴) 한 그래프. items = [{label, v, line, title, color}]
+  function barLineChart(el, items, lineMax, h) {
+    if (!items.length) { el.innerHTML = '<div class="empty-txt">기록이 없어요.</div>'; return; }
+    h = h || 190;
+    var W = Math.max(280, el.clientWidth || 600), n = items.length;
+    var slot = Math.min(80, W / n), off = (W - slot * n) / 2, top = 26, bottom = 26;
+    var ch = h - top - bottom, bw = slot * 0.6, skip = Math.ceil(n * 40 / W), showVal = slot >= 30;
+    var out = '<svg viewBox="0 0 ' + W + ' ' + h + '" width="' + W + '" height="' + h + '" role="img">';
+    out += '<line x1="0" y1="' + (top + ch) + '" x2="' + W + '" y2="' + (top + ch) + '" stroke="#D9E0DA"/>';
+    var pts = [];
+    items.forEach(function (it, i) {
+      var cx = off + i * slot + slot / 2, x = cx - bw / 2, bh = Math.max(it.v > 0 ? 2 : 0, ch * Math.min(1, it.v / 100));
+      out += '<g><title>' + esc(it.title || '') + '</title><rect x="' + x.toFixed(1) + '" y="' + (top + ch - bh).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="4" fill="' + (it.color || '#9CCFAE') + '"/>';
+      if (showVal && bh > 20) out += '<text x="' + cx.toFixed(1) + '" y="' + (top + ch - 7) + '" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">' + Math.round(it.v) + '%</text>';
+      if (i % skip === 0) out += '<text x="' + cx.toFixed(1) + '" y="' + (h - 8) + '" text-anchor="middle" font-size="12" fill="#5A6660">' + esc(it.label) + '</text>';
+      out += '</g>';
+      if (it.line != null) pts.push([cx, top + ch - ch * Math.min(1, it.line / (lineMax || 1)), it.line]);
+    });
+    if (pts.length) {
+      out += '<polyline fill="none" stroke="#2D6CC8" stroke-width="2.5" stroke-linejoin="round" points="' + pts.map(function (q) { return q[0].toFixed(1) + ',' + q[1].toFixed(1); }).join(' ') + '"/>';
+      pts.forEach(function (q) {
+        out += '<circle cx="' + q[0].toFixed(1) + '" cy="' + q[1].toFixed(1) + '" r="4" fill="#fff" stroke="#2D6CC8" stroke-width="2"/>';
+        if (showVal) out += '<text x="' + q[0].toFixed(1) + '" y="' + (q[1] - 8).toFixed(1) + '" text-anchor="middle" font-size="12" font-weight="700" fill="#2D6CC8">' + f1(q[2]) + '</text>';
+      });
+    }
+    el.innerHTML = out + '</svg>';
   }
   function nameChip(p, cls, extra) {
     return '<button type="button" class="chip ' + (cls || '') + '" data-id="' + esc(p.id) + '">' + gdot(p.grade) + esc(p.name) +
@@ -3416,10 +3481,12 @@ window.NB_LIBS = (function () {
     });
     var base = roster.length - notes.length;
     var last = d.lastAt && d.lastAt.slice(0, 10) === ref ? d.lastAt.slice(11) : '';
+    var prevDay = dates.filter(function (x) { return x < ref; }).slice(-1), pm = prevDay.length ? periodMetrics(prevDay) : null;
+    var plabel = '지난 활동일(' + (prevDay.length ? md(prevDay[0]) : '') + ')보다';
     $('tTodayKpis').innerHTML =
-      kpi('참여', y, '/' + roster.length + '명', '참여율 ' + pct(y, base) + '%') +
+      kpi('참여', y, '/' + roster.length + '명', '참여율 ' + pct(y, base) + '%', pm && pm.rate != null ? dlt(pct(y, base) - Math.round(pm.rate), '%p', plabel) : '') +
       kpi('달린 바퀴', Math.round(lapsOf(m)).toLocaleString('ko-KR'), '바퀴', '거리 ' + f1(m / 1000) + 'km') +
-      kpi('참여자 1인 평균', y ? f1(lapsOf(m) / y) : '0', '바퀴') +
+      kpi('참여자 1인 평균', y ? f1(lapsOf(m) / y) : '0', '바퀴', '', pm && pm.dayAvg != null && y ? dlt(lapsOf(m) / y - pm.dayAvg, '바퀴', plabel) : '') +
       kpi('마지막 체크', last || '-', '', ref === td ? '휴대폰이 저장한 시각' : mdw(ref));
     $('tAbsSub').textContent = absent.length + '명' + (notes.length ? ' · 기타 ' + notes.length + '명' : '');
     $('tAbsent').innerHTML = (absent.length ? absent.map(function (a) { return nameChip(a.p, '', a.t); }).join('') : '<span class="none">모두 나왔어요</span>') +
@@ -3452,11 +3519,13 @@ window.NB_LIBS = (function () {
     var possible = dates.length * R - O;
     $('tKpis').innerHTML = !dates.length
       ? '<div class="kpi"><div class="l">' + PERIOD_NAME[T.period] + '</div><div class="v">기록 없음</div><div class="s">이 기간에는 체크한 날이 없어요.</div></div>'
-      : kpi('활동일', dates.length, '일') +
-        kpi('참여율', pct(Y, possible), '%', '하루 평균 ' + f1(Y / dates.length) + '명 / ' + R + '명') +
-        kpi('달린 거리', f1(M / 1000), 'km', Math.round(lapsOf(M)).toLocaleString('ko-KR') + '바퀴') +
-        kpi('1인 평균', f1(lapsOf(M) / Math.max(1, R)), '바퀴', '학생 한 명이 이 기간에 달린 바퀴') +
-        kpi('하루 1인 평균', Y ? f1(lapsOf(M) / Y) : '0', '바퀴', '나온 날 한 번에 달린 바퀴');
+      : (function () {
+        var pp = prevPeriod(T.period), pm = pp && pp.dates.length ? periodMetrics(pp.dates) : null;
+        return kpi('활동일', dates.length, '일') +
+          kpi('참여율', pct(Y, possible), '%', '하루 평균 ' + f1(Y / dates.length) + '명 / ' + R + '명', pm && pm.rate != null ? dlt(pct(Y, possible) - Math.round(pm.rate), '%p', pp.label) : '') +
+          kpi('달린 거리', f1(M / 1000), 'km', Math.round(lapsOf(M)).toLocaleString('ko-KR') + '바퀴') +
+          kpi('하루 1인 평균', Y ? f1(lapsOf(M) / Y) : '0', '바퀴', '나온 날 한 번에 달린 바퀴', pm && pm.dayAvg != null && Y ? dlt(lapsOf(M) / Y - pm.dayAvg, '바퀴', pp.label) : '');
+      })();
 
     // 학년별
     var grades = {};
@@ -3465,11 +3534,11 @@ window.NB_LIBS = (function () {
       var s = per[p.id]; g.n++; g.y += s.y; g.base += s.base; g.m += s.m;
     });
     var gk = Object.keys(grades).sort(function (a, b) { return (Number(a) || 99) - (Number(b) || 99); });
-    $('tGrades').innerHTML = '<thead><tr><th>학년</th><th class="r">인원</th><th>참여율</th><th class="r">1인 평균</th><th class="r">하루 1인 평균</th><th class="r">거리</th></tr></thead><tbody>' +
+    $('tGrades').innerHTML = '<thead><tr><th>학년</th><th class="r">인원</th><th>참여율</th><th class="r">하루 1인 평균</th><th class="r">거리</th></tr></thead><tbody>' +
       gk.map(function (k) {
         var g = grades[k];
         return '<tr><td>' + gdot(k) + ' <b>' + esc(k ? k + '학년' : '학년 없음') + '</b></td><td class="r num">' + g.n + '명</td>' +
-          '<td>' + rateHtml(g.base ? g.y / g.base : null) + '</td><td class="r num">' + f1(lapsOf(g.m) / g.n) + '바퀴</td>' +
+          '<td>' + rateHtml(g.base ? g.y / g.base : null) + '</td>' +
           '<td class="r num">' + (g.y ? f1(lapsOf(g.m) / g.y) + '바퀴' : '-') + '</td><td class="r num">' + f1(g.m / 1000) + 'km</td></tr>';
       }).join('') + '</tbody>';
 
@@ -3484,17 +3553,15 @@ window.NB_LIBS = (function () {
     buckets.forEach(function (b) {
       var y = 0, o = 0, m = 0;
       roster.forEach(function (p) { b.days.forEach(function (dt) { var st = dayStatus(p.id, dt); if (st.k === 'y') y++; if (st.k === 'o') o++; m += st.m; }); });
-      var r = pct(y, b.days.length * R - o), lp = lapsOf(m) / Math.max(1, R);
+      var r = pct(y, b.days.length * R - o), lp = y ? lapsOf(m) / y : 0;   // 나온 학생 한 명이 하루에 달린 바퀴
       var lbl = byWeek ? md(b.k) + '주' : md(b.k);
       var ttl = (byWeek ? md(b.k) + '부터 한 주 (활동 ' + b.days.length + '일)' : mdw(b.k));
-      rateItems.push({ label: lbl, v: r, txt: r + '%', title: ttl + ' · 참여율 ' + r + '%', color: r < 70 ? '#C4432B' : '#22704A' });
-      lapItems.push({ label: lbl, v: lp, txt: f1(lp), title: ttl + ' · 1인 평균 ' + f1(lp) + '바퀴', color: '#2D6CC8' });
+      rateItems.push({ label: lbl, v: r, txt: r + '%', title: ttl + ' · 참여율 ' + r + '%', color: r < 70 ? '#E08A7E' : '#8CC9A0' });
+      lapItems.push({ line: lp });
       if (lp > maxLap) maxLap = lp;
     });
-    $('tChartTitle').innerHTML = '참여율 <small>' + (byWeek ? '주별 (월요일 날짜)' : '날짜별') + ' · 70% 아래는 빨강</small>';
-    $('tChartTitle2').innerHTML = '1인 평균 바퀴 <small>' + (byWeek ? '한 주 동안' : '그날') + ' 학생 한 명이 달린 바퀴</small>';
-    barChart($('tChartRate'), rateItems, 100, 150);
-    barChart($('tChartLaps'), lapItems, maxLap * 1.15, 150);
+    $('tChartTitle').innerHTML = '참여율과 하루 1인 평균 <small>' + (byWeek ? '주별 (월요일 날짜)' : '날짜별') + ' · 막대 = 참여율(70% 아래는 빨강) · <span style="color:#2D6CC8">선 = 나온 학생 한 명이 하루에 달린 바퀴</span></small>';
+    barLineChart($('tChartRate'), rateItems.map(function (it, i) { return { label: it.label, v: it.v, color: it.color, line: lapItems[i].line, title: it.title + ' · 하루 1인 평균 ' + f1(lapItems[i].line) + '바퀴' }; }), maxLap * 1.25, 190);
 
     // 학년 거르개
     var gb = [['all', '전체']].concat(gk.map(function (k) { return [k, k ? k + '학년' : '학년 없음']; }));
@@ -3518,7 +3585,7 @@ window.NB_LIBS = (function () {
       }
     };
     list.sort(function (a, b) { var A = val(a), B = val(b); return (A < B ? -1 : A > B ? 1 : a.i - b.i) * dir; });
-    var cols = [['no', '번호'], ['name', '이름'], ['grade', '학년'], ['y', '출석', 'r'], ['x', '결석', 'r'], ['o', '기타', 'r'], ['rate', '출석률'],
+    var cols = [['no', '번호'], ['name', '이름'], ['grade', '학년'], ['y', '출석', 'r'], ['x', '결석', 'r'], ['rate', '출석률'],
       ['laps', '바퀴 (거리)', 'r'], ['lap', '평균 랩타임', 'r'], ['last', '마지막 참여', 'r']];
     $('tStudents').innerHTML = '<thead><tr>' + cols.map(function (c) {
       return '<th class="sort' + (c[2] ? ' r' : '') + (key === c[0] ? (dir > 0 ? ' asc' : ' desc') : '') + '" data-k="' + c[0] + '">' + c[1] + '</th>';
@@ -3526,7 +3593,7 @@ window.NB_LIBS = (function () {
       var s = r.s;
       return '<tr><td class="num">' + esc(r.p.id) + '</td><td><button type="button" class="nb" data-id="' + esc(r.p.id) + '">' + esc(r.p.name) + '</button></td>' +
         '<td>' + gdot(r.p.grade) + ' ' + esc(r.p.grade) + '</td>' +
-        '<td class="r num">' + s.y + '</td><td class="r num">' + (s.x ? '<b style="color:var(--bad)">' + s.x + '</b>' : 0) + '</td><td class="r num">' + s.o + '</td>' +
+        '<td class="r num">' + s.y + '</td><td class="r num">' + (s.x ? '<b style="color:var(--bad)">' + s.x + '</b>' : 0) + (s.o ? ' <small style="color:#6B4E00" title="출석부에 직접 적은 말">기타 ' + s.o + '</small>' : '') + '</td>' +
         '<td>' + rateHtml(s.rate) + '</td>' +
         '<td class="r num"><b>' + Math.round(lapsOf(s.m)) + '</b>바퀴 <span style="color:var(--ink-soft)">(' + f1(s.m / 1000) + 'km)</span></td>' +
         '<td class="r num" title="' + (r.lap.n ? '바퀴 ' + r.lap.n + '개 평균 · 가장 빠른 ' + secTxt(r.lap.best) : '') + '">' + secTxt(r.lap.avg) + '</td>' +
@@ -3536,7 +3603,9 @@ window.NB_LIBS = (function () {
     // 출석 현황 격자
     if (!dates.length) { $('tAtt').innerHTML = '<tbody><tr><td class="nm" style="color:var(--ink-soft)">이 기간에는 체크한 날이 없어요.</td></tr></tbody>'; return; }
     var head = '<thead><tr><th class="nm">이름</th>' + dates.map(function (dt) {
-      var x = pd(dt); return '<th>' + (x.getMonth() + 1) + '/' + x.getDate() + '<br>' + WD.charAt(x.getDay()) + '</th>';
+      var x = pd(dt), pl = (d.place || {})[dt] || {};
+      var plc = (pl.t ? '<b class="plc t" title="운동장">운</b>' : '') + (pl.g ? '<b class="plc g" title="강당">강</b>' : '');
+      return '<th>' + (x.getMonth() + 1) + '/' + x.getDate() + '<br>' + WD.charAt(x.getDay()) + (plc ? '<br>' + plc : '') + '</th>';
     }).join('') + '</tr></thead>';
     var body = '<tbody>' + list.map(function (r) {
       return '<tr><td class="nm"><button type="button" class="nb" data-id="' + esc(r.p.id) + '" style="border:0;background:none;padding:0;font:inherit;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px">' +
@@ -3544,7 +3613,8 @@ window.NB_LIBS = (function () {
           var st = dayStatus(r.p.id, dt);
           var txt = st.t ? st.t.slice(0, 2) : st.k === 'y' ? Math.round(lapsOf(st.m)) : '';
           var ttl = r.p.name + ' ' + mdw(dt) + ' · ' + (st.t || (st.k === 'y' ? Math.round(lapsOf(st.m)) + '바퀴' : '결석'));
-          return '<td class="c ' + st.k + '" title="' + esc(ttl) + '">' + esc(String(txt)) + '</td>';
+          var gymDay = st.k === 'y' && ((d.gym || {})[dt] || {})[r.p.id];
+          return '<td class="c ' + st.k + (gymDay ? ' gym' : '') + '" title="' + esc(ttl + (gymDay ? ' · 강당' : '')) + '">' + esc(String(txt)) + '</td>';
         }).join('') + '</tr>';
     }).join('') + '</tbody>';
     var foot = '<tfoot><tr><td class="nm">출석 인원</td>' + dates.map(function (dt) {
@@ -3574,7 +3644,25 @@ window.NB_LIBS = (function () {
     $('dKpis').innerHTML +=
       kpi(PERIOD_NAME[T.period] + ' 평균 랩타임', ls.avg == null ? '-' : secTxt(ls.avg), '', ls.n ? '운동장 바퀴 ' + ls.n + '개 평균' : '운동장 랩타임 기록이 없어요') +
       kpi('가장 빠른 바퀴', ls.best == null ? '-' : secTxt(ls.best), '', ls.bestDate ? mdw(ls.bestDate) : '');
-    var byWeek = dates.length > 40, items = [], max = 0;
+    // 성장 비교: 처음 나온 달 vs 가장 최근에 나온 달 (하루 평균 바퀴, 평균 랩타임)
+    var monthsOn = [];
+    all.forEach(function (dt) { if (dayStatus(id, dt).k === 'y') { var mk = dt.slice(0, 7); if (monthsOn.indexOf(mk) < 0) monthsOn.push(mk); } });
+    if (monthsOn.length >= 2) {
+      var mStat = function (mk) {
+        var ds2 = all.filter(function (x) { return x.slice(0, 7) === mk; }), st2 = sumStats(id, ds2);
+        return { day: st2.y ? lapsOf(st2.m) / st2.y : null, lap: lapStats(id, ds2).avg, y: st2.y };
+      };
+      var a = mStat(monthsOn[0]), b = mStat(monthsOn[monthsOn.length - 1]), mn = function (mk) { return Number(mk.slice(5)) + '월'; };
+      var chg = function (v, unit, better) { if (v == null) return '-'; var r = Math.round(v * 10) / 10; if (!r) return '<span style="color:var(--ink-soft)">같음</span>'; var good = better === 'up' ? r > 0 : r < 0; return '<b style="color:' + (good ? '#1E6B3A' : '#B3261E') + '">' + (good ? '▲ ' : '▼ ') + Math.abs(r) + unit + '</b>'; };
+      $('dGrowth').innerHTML = '<h3>성장 비교 <small style="font-weight:500;color:var(--ink-soft)">처음 한 달 vs 최근 한 달</small></h3>' +
+        '<table class="grow"><thead><tr><th></th><th>처음 한 달 (' + mn(monthsOn[0]) + ', ' + a.y + '일)</th><th>최근 한 달 (' + mn(monthsOn[monthsOn.length - 1]) + ', ' + b.y + '일)</th><th>변화</th></tr></thead><tbody>' +
+        '<tr><td>하루 평균 바퀴</td><td class="num">' + (a.day == null ? '-' : f1(a.day) + '바퀴') + '</td><td class="num">' + (b.day == null ? '-' : f1(b.day) + '바퀴') + '</td><td>' + chg(a.day != null && b.day != null ? b.day - a.day : null, '바퀴', 'up') + '</td></tr>' +
+        '<tr><td>평균 랩타임 (운동장)</td><td class="num">' + secTxt(a.lap) + '</td><td class="num">' + secTxt(b.lap) + '</td><td>' +
+          (a.lap != null && b.lap != null ? chg(b.lap - a.lap, '초', 'down').replace(/(\d+(\.\d+)?)초/, function (m0, n0) { return secTxt(Number(n0)) + (b.lap < a.lap ? ' 빨라짐' : ' 느려짐'); }) : '-') + '</td></tr>' +
+        '</tbody></table>';
+    } else {
+      $('dGrowth').innerHTML = '<p class="empty-txt" style="margin:-6px 0 14px">기록이 두 달에 걸쳐 쌓이면 처음 한 달과 최근 한 달을 비교해 보여 줘요.</p>';
+    }    var byWeek = dates.length > 40, items = [], max = 0;
     if (byWeek) {
       var wk = {}, order = [];
       dates.forEach(function (dt) { var k = weekOf(dt); if (!wk[k]) { wk[k] = { m: 0, y: 0, n: 0 }; order.push(k); } var st = dayStatus(id, dt); wk[k].m += st.m; wk[k].n++; if (st.k === 'y') wk[k].y++; });
@@ -3724,9 +3812,14 @@ window.NB_LIBS = (function () {
       getRoster: function () { return { url: '', roster: roster }; },
       getTeacher: function () {
         var now = new Date(), days = {};
-        log.forEach(function (r) { var x = days[r.date] || (days[r.date] = {}); x[r.id] = (x[r.id] || 0) + r.m; });
+        var gym = {}, place = {};
+        log.forEach(function (r) {
+          var x = days[r.date] || (days[r.date] = {}); x[r.id] = (x[r.id] || 0) + r.m;
+          if (!r.start) { var pl = place[r.date] || (place[r.date] = { t: 0, g: 0 }); if (r.gym) pl.g++; else pl.t++; }
+          if (r.gym) (gym[r.date] || (gym[r.date] = {}))[r.id] = 1;
+        });
         var td = dstr(now);
-        return { roster: roster, settings: settings, days: days, laps: lapTimes(), notes: notes, sem2: '', today: td,
+        return { roster: roster, settings: settings, days: days, gym: gym, place: place, laps: lapTimes(), notes: notes, sem2: '', today: td,
           lastAt: td + ' 09:08',
           updated: (now.getMonth() + 1) + '월 ' + now.getDate() + '일 ' + ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2) };
       }
