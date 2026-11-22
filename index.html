@@ -1021,7 +1021,7 @@ window.NB_LIBS = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '82';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '83';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -1356,7 +1356,7 @@ window.NB_LIBS = (function () {
     if (S.camHidden) return;   // 결과 카드 4장으로 카메라 화면이 숨어 있는 동안엔 읽지 않는다
     var id = String(text || '').trim().toUpperCase();
     var now = Date.now();
-    if (id === S.lastText && now - S.lastTextAt < 3000) return; // 카메라가 같은 카드를 연달아 읽는 것 무시
+    if (id === S.lastText && now - S.lastTextAt < 5000) return; // 같은 카드는 5초 안에 다시 읽지 않음 (카메라가 연달아 읽는 것 무시)
     S.lastText = id; S.lastTextAt = now;
 
     if (todayStr() !== S.todayDate) { S.todayDate = todayStr(); S.today = {}; }
