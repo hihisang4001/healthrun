@@ -1107,7 +1107,7 @@ window.NB_LIBS = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '95';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '96';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -1706,12 +1706,17 @@ window.NB_LIBS = (function () {
     var smallOne = n === 1 && cards[0].classList.contains('small');
     // 작은 카드 한 장만 남으면 결과 자리 맨 위로 (위 카드가 줄어드는 동안 부드럽게 올라간다).
     // 그 상태에서 새 카드가 오면 남은 카드는 위에 둔 채 아래에 새 카드가 들어온다
-    if (n === 0 || n >= 3) S.lone = false; else if (smallOne) S.lone = true;
-    st.classList.toggle('lone', !!S.lone);
+    // 마지막 카드가 흐려지며 사라지는 동안(화면에 남은 카드 0장, 아직 사라지는 중인 카드 있음)에는
+    // 위치(맨 위)와 글씨 크기를 그대로 둔다 — 바꾸면 사라지는 카드가 가운데로 튀었다 사라진다
+    var fading = n === 0 && st.querySelector('.card');
+    if (!fading) {
+      if (n === 0 || n >= 3 || (n === 1 && !smallOne)) S.lone = false; else if (smallOne) S.lone = true;
+      st.classList.toggle('lone', !!S.lone);
+      st.classList.toggle('half', n >= 2 || smallOne);
+    }
     var stackH = n === 0 ? 0 : n <= 2 ? topH : n === 3 ? topH * 1.5 : H;
     var cardH = n === 1 && !smallOne ? topH - 24 : n === 4 ? (H - 24 - gap * 3) / 4 : (topH - 24 - gap) / 2;
     st.style.height = stackH + 'px';
-    st.classList.toggle('half', n >= 2 || smallOne);
     cards.forEach(function (c) { c.style.height = Math.max(0, cardH) + 'px'; });
     // 3장이면 카메라 창을 카드 반 장만큼 줄이고, 4장이면 숨긴다 (숨은 동안엔 카드를 읽지 않음)
     S.camHidden = n >= CARD_MAX;
