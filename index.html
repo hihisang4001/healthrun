@@ -180,6 +180,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--turf); outline-
 }
 .fb.idle .big { color: var(--ink-soft); font-size: clamp(28px, 8vw, 54px); }
 .fb.ok { background: var(--ok); color: #fff; border: 3px solid var(--ok); }
+.fb.ok.gym { background: #5B3A9A; border-color: #5B3A9A; }   /* 강당 바퀴 = 보라 */
 .fb.kickoff { background: #2D6CC8; color: #fff; border: 3px solid #2D6CC8; }   /* 그날 첫 체크(출발) */
 .fb .rule { margin-top: 12px; background: rgba(255,255,255,.16); border-radius: 20px; padding: 10px 22px 12px; }
 .fb.kickoff .big { font-size: clamp(36px, 9vw, 72px); }
@@ -1021,7 +1022,7 @@ window.NB_LIBS = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '85';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '86';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -1420,7 +1421,7 @@ window.NB_LIBS = (function () {
       : lapsToday % 2 ? '오늘 네가 나를 ' + distTxt(t.m) + ' 데려다 줬어!'
       : CHEERS[Math.floor(Math.random() * CHEERS.length)];
     saveSnap();
-    feedback('ok cho', p.name, '', '', { laps: '오늘 ' + lapsToday + '바퀴째', choco: talk });
+    feedback(gym ? 'ok cho gym' : 'ok cho', p.name, '', '', { laps: '오늘 ' + lapsToday + '바퀴째', choco: talk });   // 바퀴 카드: 운동장 초록, 강당 보라
     beep(stop ? 'win' : 'ok');    renderToday(gradeOf(p));   // 찍은 학생의 학년 칸이 잠깐 커진다
   }
 
