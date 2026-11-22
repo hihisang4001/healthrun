@@ -154,7 +154,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--turf); outline-
 .fbstack.half .card.kickoff .big { font-size: clamp(24px, 5vw, 42px); }
 .fbstack.half .card.kickoff .rule { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
 .fbstack.half .card.kickoff .rule .cyc { margin-top: 0; }
-.fbstack.half .card.kickoff .rule .cyc .qr { font-size: clamp(14px, 2.6vw, 22px); padding: 2px 8px; }
+.fbstack.half .card.kickoff .rule .cyc .qr { width: clamp(28px, 5.2vw, 44px); height: clamp(28px, 5.2vw, 44px); padding: 1px; }
 .fbstack.half .card.kickoff .rule .cyc .ar { font-size: clamp(16px, 3vw, 26px); }
 /* 초코 창문: 둥근 네모 안에 풍경·날씨, 초코는 흙길 위를 달린다. 말풍선은 창문 위 */
 .fb .choco .win { position: relative; width: min(100%, 330px); border-radius: 22px; overflow: hidden; border: 4px solid rgba(255,255,255,.85); background: #9AD3F2; box-shadow: 0 3px 0 rgba(0,0,0,.18); }
@@ -163,8 +163,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--turf); outline-
 .fb .choco .win img { position: absolute; left: 50%; bottom: 4%; width: 62%; transform: translateX(-50%); image-rendering: pixelated; }
 .fbstack.half .card .choco .win { width: min(100%, 190px); border-width: 3px; border-radius: 14px; }/* 결과 + 초코: 왼쪽 이름·바퀴, 오른쪽 큰 초코와 말풍선 */
 .fb.cho { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: 1fr auto auto 1fr; column-gap: 12px; }
-.fb.cho .big { grid-column: 1; grid-row: 2; }
-.fb.cho .laps { grid-column: 1; grid-row: 3; }
+.fb.cho .big { grid-column: 1; grid-row: 2; min-width: 0; max-width: 100%; white-space: nowrap; overflow: hidden; }
+.fb.cho .laps { grid-column: 1; grid-row: 3; min-width: 0; }
 .fb.cho .choco { grid-column: 2; grid-row: 1 / 5; align-self: center; display: flex; flex-direction: column; align-items: center; }
 .fb .choco[hidden] { display: none; }
 .fb .choco .bub { position: relative; background: #fff; color: #1C2420; font-weight: 900; font-size: clamp(16px, 3.4vw, 28px); line-height: 1.3; padding: 10px 16px; border-radius: 18px; word-break: keep-all; margin-bottom: 14px; box-shadow: 0 3px 0 rgba(0,0,0,.18); }
@@ -195,7 +195,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--turf); outline-
 .fb .rule .cyc { display: flex; align-items: center; justify-content: center; gap: clamp(6px, 1.4vw, 12px); margin-top: 10px; }
 .fb .rule .cyc i { width: clamp(22px, 4.6vw, 40px); height: clamp(22px, 4.6vw, 40px); border-radius: 50%; border: 4px solid #fff; }
 .fb .rule .cyc .ar { font-size: clamp(22px, 5vw, 40px); font-weight: 900; }
-.fb .rule .cyc .qr { font-family: var(--display); background: #fff; color: #1C2420; border-radius: 10px; padding: 4px 12px; font-size: clamp(18px, 4vw, 32px); }
+.fb .rule .cyc .qr { display: inline-block; background: #fff; border-radius: 6px; padding: 2px; width: clamp(44px, 9.2vw, 80px); height: clamp(44px, 9.2vw, 80px); box-shadow: 0 2px 0 rgba(0,0,0,.25); }
+.fb .rule .cyc .qr svg { display: block; width: 100%; height: 100%; }
 .fb .sub { white-space: pre-line; }
 .fb.win { background: var(--track); color: #fff; border: 3px solid var(--track); }
 .fb.warn { background: var(--warn); color: #241A00; border: 3px solid var(--warn); }
@@ -1027,7 +1028,7 @@ window.NB_LIBS = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '88';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '90';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -1411,7 +1412,7 @@ window.NB_LIBS = (function () {
     for (var di = 0; di < nDot; di++) dots += '<i></i>';
     feedback(gym ? 'kickoff gym' : 'kickoff track', p.name, '출발! 오늘도 신나게 달려봐요!', '', {
       rule: '<div class="rt">' + (gym ? '강당은 <b>5바퀴</b>마다 찍어요' : '<b>한 바퀴</b> 돌 때마다 찍어요') + '</div>' +
-        '<div class="cyc">' + dots + '<span class="ar">→</span><span class="qr">QR</span></div>'
+        '<div class="cyc">' + dots + '<span class="ar">→</span><span class="qr">' + qrIcon() + '</span></div>'
     });
       beep('ok');
       renderToday(gradeOf(p));
@@ -1443,6 +1444,26 @@ window.NB_LIBS = (function () {
     return '';
   }
   window.nbStopReached = stopReached;   // 미리보기 시험용
+  /* 출발 카드의 QR 그림: 진짜 QR처럼 세 모서리 기준 네모 + 타이밍 줄 + 점들 (내용은 일부러 엉터리라 읽히지 않음) */
+  var QR_SVG = null;
+  function qrIcon() {
+    if (QR_SVG) return QR_SVG;
+    var N = 21, m = [], seed = 11, rnd = function () { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+    for (var y = 0; y < N; y++) { m.push([]); for (var x = 0; x < N; x++) m[y].push(rnd() < .48 ? 1 : 0); }
+    var finder = function (ox, oy) {
+      for (var y = -1; y < 8; y++) for (var x = -1; x < 8; x++) {
+        var X = ox + x, Y = oy + y; if (X < 0 || Y < 0 || X >= N || Y >= N) continue;
+        var ring = Math.max(Math.abs(x - 3), Math.abs(y - 3));
+        m[Y][X] = (x < 0 || y < 0 || x > 6 || y > 6) ? 0 : (ring === 3 || ring <= 1) ? 1 : 0;
+      }
+    };
+    finder(0, 0); finder(N - 7, 0); finder(0, N - 7);
+    for (var i = 8; i < N - 8; i++) { m[6][i] = m[i][6] = i % 2 ? 0 : 1; }   // 타이밍 줄
+    var d = '';
+    for (y = 0; y < N; y++) for (x = 0; x < N; x++) if (m[y][x]) d += 'M' + (x + 2) + ' ' + (y + 2) + 'h1v1h-1z';
+    QR_SVG = '<svg viewBox="0 0 25 25" shape-rendering="crispEdges" aria-label="QR"><rect width="25" height="25" fill="#fff"/><path d="' + d + '" fill="#1C2420"/></svg>';
+    return QR_SVG;
+  }
   function lapText(ms) {   // 108000 → '1분 48초'
     var s = Math.round(ms / 1000), mm = Math.floor(s / 60), ss = s % 60;
     return (mm ? mm + '분 ' : '') + ss + '초';
@@ -1541,7 +1562,7 @@ window.NB_LIBS = (function () {
     // 바퀴 카드: 초코는 둥근 창문 안 흙길 산책로를 달린다 (풍경·날씨는 창문 안에만, 말풍선은 창문 위)
     if (info.choco) h += '<div class="choco"><div class="bub">' + esc(info.choco) + '</div><div class="win"><canvas class="scene" aria-hidden="true"></canvas><img class="fbdog" alt="초코"></div></div>';
     card.innerHTML = h;
-    if (info.choco) { card.classList.add('scenic'); card._scene = { born: performance.now(), seed: Math.random() * 1000, parts: [] }; startScenes(); }
+    if (info.choco) { card.classList.add('scenic'); card._scene = { born: performance.now(), seed: Math.random() * 1000, parts: [] }; }
     // 4장이 넘으면 가장 오래된 카드부터 뺀다 (카메라가 숨어 있을 땐 읽지 않아서 보통은 생기지 않음)
     var cards = st.querySelectorAll('.card:not(.out)');
     if (cards.length >= CARD_MAX) removeCard(cards[0], true);
@@ -1552,6 +1573,7 @@ window.NB_LIBS = (function () {
     card.style.opacity = '';
     layoutCards();
     startDogAnim();
+    startScenes();   // 카드를 화면에 붙인 뒤에 시작해야 첫 카드도 풍경이 그려진다
     card._born = Date.now();
     scheduleCards();
   }
@@ -1594,8 +1616,20 @@ window.NB_LIBS = (function () {
     S.camHidden = n >= CARD_MAX;
     run.classList.toggle('camoff', S.camHidden);
     var rd = $('reader');
+    fitNames();
     if (n === 3) { var avail = H - stackH - 40; rd.style.width = Math.max(120, Math.min(window.innerWidth * .94, avail)) + 'px'; }
     else rd.style.width = '';
+  }
+  // 이름이 길면(예: 아스르베키) 이름 칸 폭에 맞게 글자를 줄인다 — 초코 창문과 겹치지 않게
+  function fitNames() {
+    Array.prototype.forEach.call(document.querySelectorAll('#fbStack .card .big'), function (el) {
+      el.style.fontSize = '';
+      var w = el.clientWidth, sw = el.scrollWidth;
+      if (w > 0 && sw > w) {
+        var fs = parseFloat(getComputedStyle(el).fontSize);
+        el.style.fontSize = Math.max(16, Math.floor(fs * w / sw * .96)) + 'px';
+      }
+    });
   }
   // 카드 속 초코들이 함께 달린다
   function startDogAnim() {
@@ -4114,6 +4148,7 @@ window.NB_LIBS = (function () {
   /* 시연: 주소 끝을 #checkdemo로 열면 카메라 없이 학생 4명이 차례로 찍는 모습을 되풀이해 보여 준다.
      화면만 보여 주고 기록은 하나도 저장하지 않는다 (실제 시트에 연결돼 있어도 안전) */
   window.nbSceneWx = function (k) { S.sceneWx = k || ''; };   // 시험: nbSceneWx('rain') → 결과 카드 풍경 날씨
+  window.nbCardTest = function (name) { feedback('ok cho', name || '아스르베키', '', '', { laps: '오늘 3바퀴째', choco: '조금만 더 힘내자!' }); };   // 시험: 카드 한 장 (기록 안 함)
   function runCheckDemo() {
     if (S.sceneWx == null) S.sceneWx = '';
     ['startPanel', 'topbar', 'demoNote'].forEach(function (i) { if ($(i)) $(i).hidden = true; });
@@ -4124,7 +4159,7 @@ window.NB_LIBS = (function () {
     var kids = [
       ['김하늘', 'ok cho', { laps: '오늘 3바퀴째', choco: '오늘 네가 나를 960m 데려다 줬어!' }],
       ['이도윤', 'ok cho', { laps: '오늘 4바퀴째', choco: '조금만 더 힘내자!' }],
-      ['박서연', 'kickoff track', { rule: '<div class="rt"><b>한 바퀴</b> 돌 때마다 찍어요</div><div class="cyc"><i></i><span class="ar">→</span><span class="qr">QR</span></div>' }, '출발! 오늘도 신나게 달려봐요!'],
+      ['박서연', 'kickoff track', { rule: '<div class="rt"><b>한 바퀴</b> 돌 때마다 찍어요</div><div class="cyc"><i></i><span class="ar">→</span><span class="qr">' + qrIcon() + '</span></div>' }, '출발! 오늘도 신나게 달려봐요!'],
       ['최지호', 'ok cho', { laps: '오늘 5바퀴째', choco: '네가 나를 울산에 도착시켰어! 고마워!' }]
     ];
     function round() {
