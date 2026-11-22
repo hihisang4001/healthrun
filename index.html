@@ -842,7 +842,7 @@ tr:last-child td { border-bottom: 0; }
       </section>
 
       <section class="t-card">
-        <h2>학생별 기록 <small>이름을 누르면 자세히 · 제목을 누르면 정렬 · 랩타임은 운동장 기록만</small></h2>
+        <h2>학생별 기록 <small>이름을 누르면 자세히(출석·결석) · 제목을 누르면 정렬 · 하루 평균 = 나온 날 한 번에 달린 바퀴 · 랩타임은 운동장 기록만</small></h2>
         <div class="t-filter" id="tFilter"></div>
         <div class="tablebox"><table class="t-tbl" id="tStudents"></table></div>
       </section>
@@ -956,7 +956,7 @@ window.NB_LIBS = (function () {
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
   var MILESTONE_M = 10000;
-  var APP_VER = '66';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '68';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -3428,7 +3428,7 @@ window.NB_LIBS = (function () {
       });
       $('tStudents').addEventListener('click', function (ev) {
         var th = ev.target.closest('th[data-k]');
-        if (th) { var k = th.getAttribute('data-k'); T.sort = { key: k, dir: T.sort.key === k ? -T.sort.dir : (k === 'no' || k === 'name' || k === 'grade' || k === 'lap' ? 1 : -1) }; renderPeriod(); return; }
+        if (th) { var k = th.getAttribute('data-k'); T.sort = { key: k, dir: T.sort.key === k ? -T.sort.dir : (k === 'no' || k === 'name' || k === 'grade' || k === 'lap' || k === 'best' ? 1 : -1) }; renderPeriod(); return; }
         var b = ev.target.closest('[data-id]'); if (b) openDetail(b.getAttribute('data-id'));
       });
       ['tAbsent', 'tWatch', 'tAtt'].forEach(function (id) {
@@ -3569,7 +3569,12 @@ window.NB_LIBS = (function () {
     $('tFilter').innerHTML = gb.map(function (x) {
       return '<button type="button" data-g="' + esc(x[0]) + '" aria-pressed="' + (T.grade === x[0]) + '">' + (x[0] === 'all' ? '' : gdot(x[0])) + esc(x[1]) + '</button>';
     }).join('');
-    var list = roster.map(function (p, i) { return { p: p, i: i, s: per[p.id], last: lastRun(p.id, all), lap: lapStats(p.id, dates) }; })
+    var ppS = prevPeriod(T.period), ppDates = ppS && ppS.dates.length ? ppS.dates : null;
+    var list = roster.map(function (p, i) {
+      var s0 = per[p.id], day = s0.y ? lapsOf(s0.m) / s0.y : null, chg = null;
+      if (ppDates && day != null) { var ps0 = sumStats(p.id, ppDates); if (ps0.y) chg = day - lapsOf(ps0.m) / ps0.y; }
+      return { p: p, i: i, s: s0, day: day, chg: chg, last: lastRun(p.id, all), lap: lapStats(p.id, dates) };
+    })
       .filter(function (r) { return T.grade === 'all' || r.p.grade === T.grade; });
 
     // 학생별 표
@@ -3581,22 +3586,27 @@ window.NB_LIBS = (function () {
         case 'y': return s.y; case 'x': return s.x; case 'o': return s.o;
         case 'rate': return s.rate == null ? -1 : s.rate; case 'laps': return s.m;
         case 'lap': return r.lap.avg == null ? 99999 : r.lap.avg; case 'last': return r.last;
+        case 'day': return r.day == null ? -1 : r.day; case 'chg': return r.chg == null ? -999 : r.chg;
+        case 'best': return r.lap.best == null ? 99999 : r.lap.best;
         default: return r.i;
       }
     };
     list.sort(function (a, b) { var A = val(a), B = val(b); return (A < B ? -1 : A > B ? 1 : a.i - b.i) * dir; });
-    var cols = [['no', '번호'], ['name', '이름'], ['grade', '학년'], ['y', '출석', 'r'], ['x', '결석', 'r'], ['rate', '출석률'],
-      ['laps', '바퀴 (거리)', 'r'], ['lap', '평균 랩타임', 'r'], ['last', '마지막 참여', 'r']];
+    var cols = [['no', '번호'], ['name', '이름'], ['grade', '학년'], ['rate', '출석률'],
+      ['laps', '바퀴 (거리)', 'r'], ['day', '하루 평균', 'r'], ['chg', ppDates ? ppS.label.replace('보다', '') + ' 대비' : '변화', 'r'], ['lap', '평균 랩타임', 'r'], ['best', '최고 랩타임', 'r'], ['last', '마지막 참여', 'r']];
+    // 출석·결석은 학생 상세에서 (표에는 출석률만)
     $('tStudents').innerHTML = '<thead><tr>' + cols.map(function (c) {
       return '<th class="sort' + (c[2] ? ' r' : '') + (key === c[0] ? (dir > 0 ? ' asc' : ' desc') : '') + '" data-k="' + c[0] + '">' + c[1] + '</th>';
     }).join('') + '</tr></thead><tbody>' + list.map(function (r) {
       var s = r.s;
       return '<tr><td class="num">' + esc(r.p.id) + '</td><td><button type="button" class="nb" data-id="' + esc(r.p.id) + '">' + esc(r.p.name) + '</button></td>' +
         '<td>' + gdot(r.p.grade) + ' ' + esc(r.p.grade) + '</td>' +
-        '<td class="r num">' + s.y + '</td><td class="r num">' + (s.x ? '<b style="color:var(--bad)">' + s.x + '</b>' : 0) + (s.o ? ' <small style="color:#6B4E00" title="출석부에 직접 적은 말">기타 ' + s.o + '</small>' : '') + '</td>' +
         '<td>' + rateHtml(s.rate) + '</td>' +
         '<td class="r num"><b>' + Math.round(lapsOf(s.m)) + '</b>바퀴 <span style="color:var(--ink-soft)">(' + f1(s.m / 1000) + 'km)</span></td>' +
-        '<td class="r num" title="' + (r.lap.n ? '바퀴 ' + r.lap.n + '개 평균 · 가장 빠른 ' + secTxt(r.lap.best) : '') + '">' + secTxt(r.lap.avg) + '</td>' +
+        '<td class="r num">' + (r.day == null ? '-' : f1(r.day) + '바퀴') + '</td>' +
+        '<td class="r num">' + (r.chg == null ? '<span style="color:var(--ink-soft)">-</span>' : (function (c) { var x = Math.round(c * 10) / 10; return x === 0 ? '<span style="color:var(--ink-soft)">같음</span>' : '<b style="color:' + (x > 0 ? '#1E6B3A' : '#B3261E') + '">' + (x > 0 ? '▲ ' : '▼ ') + f1(Math.abs(x)) + '</b>'; })(r.chg)) + '</td>' +
+        '<td class="r num" title="' + (r.lap.n ? '운동장 바퀴 ' + r.lap.n + '개 평균' : '') + '">' + secTxt(r.lap.avg) + '</td>' +
+        '<td class="r num" title="' + (r.lap.bestDate ? mdw(r.lap.bestDate) : '') + '">' + secTxt(r.lap.best) + '</td>' +
         '<td class="r num">' + (r.last ? mdw(r.last) : '-') + '</td></tr>';
     }).join('') + '</tbody>';
 
@@ -3635,7 +3645,7 @@ window.NB_LIBS = (function () {
     var s = sumStats(id, dates), sa = sumStats(id, all), lr = lastRun(id, all);
     $('dName').innerHTML = gdot(p.grade) + esc(p.name) + ' <small style="font-size:15px;font-weight:500;color:var(--ink-soft)">' + esc(p.grade ? p.grade + '학년 · ' : '') + esc(p.id) + '</small>';
     $('dKpis').innerHTML =
-      kpi(PERIOD_NAME[T.period] + ' 출석', s.y, '/' + s.base + '일', s.rate == null ? '' : '출석률 ' + Math.round(s.rate * 100) + '%') +
+      kpi(PERIOD_NAME[T.period] + ' 출석', s.y, '/' + s.base + '일', '결석 ' + (s.x ? '<b style="color:var(--bad)">' + s.x + '</b>' : 0) + ' · 기타 ' + s.o + (s.rate == null ? '' : ' · 출석률 ' + Math.round(s.rate * 100) + '%')) +
       kpi(PERIOD_NAME[T.period] + ' 바퀴', Math.round(lapsOf(s.m)), '바퀴', f1(s.m / 1000) + 'km · 하루 평균 ' + (s.y ? f1(lapsOf(s.m) / s.y) : '0') + '바퀴') +
       kpi('전체 누적', f1(sa.m / 1000), 'km', '출석 ' + sa.y + '/' + sa.base + '일 · ' + Math.round(lapsOf(sa.m)) + '바퀴') +
       kpi('마지막 참여', lr ? mdw(lr) : '-', '');
@@ -3643,7 +3653,7 @@ window.NB_LIBS = (function () {
     var ls = lapStats(id, dates);
     $('dKpis').innerHTML +=
       kpi(PERIOD_NAME[T.period] + ' 평균 랩타임', ls.avg == null ? '-' : secTxt(ls.avg), '', ls.n ? '운동장 바퀴 ' + ls.n + '개 평균' : '운동장 랩타임 기록이 없어요') +
-      kpi('가장 빠른 바퀴', ls.best == null ? '-' : secTxt(ls.best), '', ls.bestDate ? mdw(ls.bestDate) : '');
+      kpi(PERIOD_NAME[T.period] + ' 최고 랩타임', ls.best == null ? '-' : secTxt(ls.best), '', ls.bestDate ? mdw(ls.bestDate) + ' · 운동장' : '');
     // 성장 비교: 처음 나온 달 vs 가장 최근에 나온 달 (하루 평균 바퀴, 평균 랩타임)
     var monthsOn = [];
     all.forEach(function (dt) { if (dayStatus(id, dt).k === 'y') { var mk = dt.slice(0, 7); if (monthsOn.indexOf(mk) < 0) monthsOn.push(mk); } });
@@ -3689,7 +3699,7 @@ window.NB_LIBS = (function () {
     barChart($('dPace'), paceItems, maxS * 1.15, 170);
     // 날짜별 랩타임 표 (최근 날짜부터)
     $('dDaysBox').hidden = !pd2.length;
-    $('dDays').innerHTML = '<thead><tr><th>날짜</th><th class="r">랩타임 수</th><th class="r">평균 랩타임</th><th class="r">가장 빠른 바퀴</th></tr></thead><tbody>' +
+    $('dDays').innerHTML = '<thead><tr><th>날짜</th><th class="r">랩타임 수</th><th class="r">평균 랩타임</th><th class="r">최고 랩타임</th></tr></thead><tbody>' +
       pd2.slice().reverse().slice(0, 12).map(function (x) {
         return '<tr><td>' + mdw(x.date) + '</td><td class="r num">' + x.n + '</td><td class="r num">' + secTxt(x.avg) + '</td><td class="r num">' + secTxt(x.best) + '</td></tr>';
       }).join('') + '</tbody>';
