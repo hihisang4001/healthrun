@@ -719,6 +719,27 @@ tr:last-child td { border-bottom: 0; }
 .qcard .code { font-size: 12px; color: #5F6863; letter-spacing: 1px; margin-top: 4px; }
 .qcard .qrbox { background: #fff; border-radius: 8px; padding: 4px; }
 .cards-tools button:disabled { background: #B9B9B9; cursor: default; }
+.cards-tools button.phone-chip { background: var(--turf); }
+/* 휴대폰으로 보기 (가로 전체 화면): 왼쪽 고른 학생 목록, 오른쪽 큰 QR 카드 */
+.pview { position: fixed; inset: 0; z-index: 50; background: #F5F6F2; display: grid; grid-template-columns: minmax(150px, 26%) minmax(0, 1fr); }
+.pv-list { background: #fff; border-right: 1.5px solid var(--rule); display: flex; flex-direction: column; min-height: 0; }
+.pv-close { margin: 10px; border: 0; border-radius: 10px; background: #1C2420; color: #fff; font-weight: 900; font-size: 15px; padding: 9px 10px; }
+.pv-names { overflow-y: auto; padding: 0 8px 12px; -webkit-overflow-scrolling: touch; }
+.pv-g { margin-top: 8px; font-weight: 900; font-size: 13px; color: var(--ink-soft); display: flex; align-items: center; gap: 6px; padding: 0 4px; }
+.pv-names button { display: block; width: 100%; text-align: left; border: 0; background: none; border-radius: 10px; padding: 8px 10px; font-size: 17px; font-weight: 700; color: var(--ink); }
+.pv-names button.on { background: var(--gc, #22704A); color: var(--gi, #fff); }
+.pv-stage { position: relative; display: grid; place-items: center; padding: 10px 14px; min-width: 0; min-height: 0; }
+.pv-hint { margin: -4px 10px 6px; font-size: 12px; line-height: 1.35; color: #8A5A00; background: #FFF4D1; border-radius: 8px; padding: 5px 8px; word-break: keep-all; }
+/* 카드: 인쇄 카드와 같은 모양(85:55)을 화면 높이에 맞춰 크게 */
+.pv-card .qcard { width: min(100%, calc((100vh - 34px) * 85 / 55)); height: auto; aspect-ratio: 85 / 55; border-width: .9vh; border-radius: 2.4vh; padding: 3vh 3vh 3vh 4vh; gap: 3vh; }
+.pv-card .qcard .gchip { font-size: 5vh; padding: 1.2vh 2.6vh; margin-bottom: 1.6vh; }
+.pv-card .qcard .school { font-size: 3.2vh; }
+.pv-card .qcard .nm { font-size: 11vh; }
+.pv-card .qcard .code { font-size: 3.4vh; margin-top: 1vh; }
+.pv-card .qcard .qrbox { padding: 1.2vh; border-radius: 1.6vh; }
+.pv-card { width: 100%; display: grid; place-items: center; }
+.pv-card .qcard { overflow: visible; }
+.pv-card .qcard svg { width: 30vh; height: 30vh; }   /* 실제 크기는 카드 높이에 맞춰 스크립트가 정한다 */
 .pick { background: var(--card); border: 1px solid var(--rule); border-radius: 16px; padding: 14px 16px; margin-bottom: 18px; }
 .pick-head { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; margin-bottom: 12px; }
 .pick-head b { font-size: 16px; font-weight: 900; }
@@ -1050,6 +1071,18 @@ tr:last-child td { border-bottom: 0; }
     <div class="cards-tools">
       <p>카드 한 장은 85×55mm예요. A4 한 장에 10명씩 인쇄돼요. 인쇄 창의 배율은 "기본값(100%)"으로 두세요. 점선대로 잘라 코팅하고 목걸이 줄에 거세요. 명단의 번호를 바꾸지 않으면 다시 인쇄할 필요가 없어요.</p>
       <button type="button" id="printBtn">인쇄하기</button>
+      <button type="button" id="phoneBtn" class="phone-chip">📱 휴대폰으로 보기</button>
+    </div>
+    <!-- 휴대폰으로 보기: 카드를 잃어버린 학생에게 휴대폰 화면의 QR 카드를 바로 찍게 (가로 전체 화면) -->
+    <div class="pview" id="phoneView" hidden>
+      <aside class="pv-list">
+        <button type="button" class="pv-close" id="pvClose">✕ 닫기</button>
+        <div class="pv-hint" id="pvHint">☀ 화면 밝기를 최대로 올리면 더 잘 찍혀요</div>
+        <div class="pv-names" id="pvNames"></div>
+      </aside>
+      <main class="pv-stage">
+        <div class="pv-card" id="pvCard"></div>
+      </main>
     </div>
     <!-- 인쇄할 학생 고르기 (카드를 잃어버린 학생만 다시 뽑을 때) -->
     <div class="pick" id="cardPick" hidden>
@@ -1830,7 +1863,7 @@ window.NBPix = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '100';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '101';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -4444,26 +4477,101 @@ window.NBPix = (function () {
     if (cardsReady) return;
     cardsReady = true;
     $('printBtn').addEventListener('click', function () { window.print(); });
-    Promise.all([call('getRoster'), window.NB_LIBS.gen]).then(function (res) {
+    initPhoneView();
+    // 명단: 받아 오면 기기에 저장해 두고, 인터넷이 안 되면(운동장 등) 저장해 둔 명단으로 카드를 만든다
+    var rosterP = call('getRoster').then(function (d) { save('nb_roster', d.roster || []); return d; }, function (e) {
+      var saved = load('nb_roster', null) || (load('nb_init', null) || {}).roster;
+      if (saved && saved.length) return { roster: saved, offline: true };
+      throw e;
+    });
+    Promise.all([rosterP, window.NB_LIBS.gen]).then(function (res) {
       var d = res[0];
-      setLinks(d.url);
+      if (d.url) setLinks(d.url);
       if (typeof qrcode === 'undefined') { $('cardSheet').textContent = 'QR 프로그램을 불러오지 못했어요. 새로고침해 주세요.'; return; }
       var roster = d.roster || [];
-      $('cardSheet').innerHTML = roster.map(function (p) {
-        var g = String(p.grade || '').replace(/학년/g, '').trim();
-        var c = GRADE_COLORS[Number(g)] || '#5A6660';
-        // 노란색(3학년) 위에는 흰 글씨가 잘 안 보여서 진한 글씨
-        var ink = Number(g) === 3 ? '#2A2000' : '#fff';
-        var style = '--gc:' + c + ';--gt:' + c + '1F;--gi:' + ink;
-        return '<div class="qcard" data-id="' + esc(p.id) + '" style="' + style + '"><div>' +
-          (g ? '<span class="gchip">' + esc(g) + '학년</span>' : '') +
-          '<div class="school">내북초 아침 건강달리기</div>' +
-          '<div class="nm">' + esc(p.name) + '</div>' +
-          '<div class="code">' + esc(p.id) + '</div></div>' +
-          '<div class="qrbox">' + qrSvg(p.id) + '</div></div>';
-      }).join('');
+      cardsRoster = roster;
+      $('cardSheet').innerHTML = roster.map(cardHTML).join('');
       buildPicker(roster);
     }, function () { $('cardSheet').textContent = '명단을 불러오지 못했어요.'; });
+  }
+  // 카드 한 장 (인쇄 카드와 휴대폰으로 보기가 같이 쓴다)
+  function cardHTML(p) {
+    var g = String(p.grade || '').replace(/학년/g, '').trim();
+    var c = GRADE_COLORS[Number(g)] || '#5A6660';
+    // 노란색(3학년) 위에는 흰 글씨가 잘 안 보여서 진한 글씨
+    var ink = Number(g) === 3 ? '#2A2000' : '#fff';
+    var style = '--gc:' + c + ';--gt:' + c + '1F;--gi:' + ink;
+    return '<div class="qcard" data-id="' + esc(p.id) + '" style="' + style + '"><div>' +
+      (g ? '<span class="gchip">' + esc(g) + '학년</span>' : '') +
+      '<div class="school">내북초 아침 건강달리기</div>' +
+      '<div class="nm">' + esc(p.name) + '</div>' +
+      '<div class="code">' + esc(p.id) + '</div></div>' +
+      '<div class="qrbox">' + qrSvg(p.id) + '</div></div>';
+  }
+
+  /* ── 휴대폰으로 보기: 카드를 잃어버린 학생이 휴대폰 화면의 QR을 바로 찍게 ──
+     가로 전체 화면. 왼쪽은 위에서 고른 학생(학년별), 오른쪽은 그 학생의 카드를 크게.
+     보는 동안 화면이 꺼지지 않게 하고, 뒤로 가기(전체 화면 해제)나 닫기로 나온다 */
+  var cardsRoster = [], pvWake = null;
+  function initPhoneView() {
+    $('phoneBtn').addEventListener('click', openPhoneView);
+    $('pvClose').addEventListener('click', closePhoneView);
+    $('pvNames').addEventListener('click', function (ev) {
+      var b = ev.target.closest('button[data-id]'); if (b) showPhoneCard(b.getAttribute('data-id'));
+    });
+    document.addEventListener('fullscreenchange', function () { if (!document.fullscreenElement && !$('phoneView').hidden) closePhoneView(); });
+  }
+  function pickedRoster() {
+    var on = {};
+    Array.prototype.forEach.call($('pickGroups').querySelectorAll('input[data-id]'), function (b) { if (b.checked) on[b.getAttribute('data-id')] = 1; });
+    var list = cardsRoster.filter(function (p) { return on[p.id]; });
+    return list.length ? list : cardsRoster;   // 아무도 안 골랐으면 전체
+  }
+  function openPhoneView() {
+    if (!cardsRoster.length || typeof qrcode === 'undefined') return;
+    var list = pickedRoster(), groups = {}, order = [];
+    list.forEach(function (p) { var g = String(p.grade || '').replace(/학년/g, '').trim(); if (!groups[g]) { groups[g] = []; order.push(g); } groups[g].push(p); });
+    order.sort(function (a, b) { return (Number(a) || 99) - (Number(b) || 99); });
+    $('pvNames').innerHTML = order.map(function (g) {
+      var c = GRADE_COLORS[Number(g)] || '#5A6660', ink = Number(g) === 3 ? '#2A2000' : '#fff';
+      return '<div class="pv-g">' + gdot(g) + esc(g ? g + '학년' : '학년 없음') + '</div>' +
+        groups[g].map(function (p) { return '<button type="button" data-id="' + esc(p.id) + '" style="--gc:' + c + ';--gi:' + ink + '">' + esc(p.name) + '</button>'; }).join('');
+    }).join('');
+    var first = order.length ? groups[order[0]][0] : list[0];
+    $('phoneView').hidden = false;
+    showPhoneCard(first.id);
+    var el = $('phoneView');
+    try {
+      if (el.requestFullscreen) el.requestFullscreen({ navigationUI: 'hide' }).then(function () {
+        if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function () {});
+      }, function () {});
+    } catch (e) {}
+    try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(function (w) { pvWake = w; }, function () {}); } catch (e) {}
+    $('pvHint').hidden = false;
+    setTimeout(function () { $('pvHint').hidden = true; }, 6000);
+  }
+  function showPhoneCard(id) {
+    var p = cardsRoster.filter(function (r) { return r.id === id; })[0]; if (!p) return;
+    $('pvCard').innerHTML = cardHTML(p);
+    fitPhoneQR();
+    Array.prototype.forEach.call($('pvNames').querySelectorAll('button[data-id]'), function (b) {
+      var on = b.getAttribute('data-id') === id; b.classList.toggle('on', on);
+      if (on) b.scrollIntoView({ block: 'nearest' });
+    });
+  }
+  // QR을 카드 높이에 꽉 차게 (카드 위아래 여백만 남기고)
+  function fitPhoneQR() {
+    var card = $('pvCard').querySelector('.qcard'), svg = card && card.querySelector('svg'); if (!svg) return;
+    var cs = getComputedStyle(card), box = card.querySelector('.qrbox'), bs = getComputedStyle(box);
+    var h = card.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - parseFloat(bs.paddingTop) * 2;
+    svg.style.width = svg.style.height = Math.max(120, Math.floor(h)) + 'px';
+  }
+  window.addEventListener('resize', function () { if (!$('phoneView').hidden) fitPhoneQR(); });
+  function closePhoneView() {
+    $('phoneView').hidden = true;
+    try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
+    try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen(); } catch (e) {}
+    try { if (pvWake) { pvWake.release(); pvWake = null; } } catch (e) {}
   }
 
   /* 인쇄할 학생 고르기: 처음에는 모두 선택. 고른 학생의 카드만 아래에 보이고 그대로 인쇄된다 */
