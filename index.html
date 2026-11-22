@@ -693,7 +693,7 @@ tr:last-child td { border-bottom: 0; }
 .medals { color: var(--track); letter-spacing: 1px; }
 .updated { font-size: 13px; color: var(--ink-soft); margin-top: 18px; }
 
-/* ── 카드 인쇄 ── */
+/* ── QR 카드 (인쇄 · 휴대폰으로 보기) ── */
 .cards-tools { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
 .cards-tools p { margin: 0; color: var(--ink-soft); font-size: 14px; flex: 1 1 260px; }
 .cards-tools button {
@@ -786,7 +786,7 @@ tr:last-child td { border-bottom: 0; }
   <div class="brand">내북초 아침 건강달리기</div>
   <a href="#check" data-view="check">체크</a>
   <a href="#board" data-view="board">현황판</a>
-  <a href="#cards" data-view="cards">카드 인쇄</a>
+  <a href="#cards" data-view="cards">QR 카드</a>
 </nav>
 <div class="demo-note" id="demoNote" hidden>미리보기 화면이에요. 이름과 기록은 모두 예시 데이터예요.</div>
 
@@ -1065,7 +1065,7 @@ tr:last-child td { border-bottom: 0; }
   </dialog>
 </section>
 
-<!-- ───── 카드 인쇄 ───── -->
+<!-- ───── QR 카드 (인쇄 · 휴대폰으로 보기) ───── -->
 <section id="v-cards" hidden>
   <div class="wrap">
     <div class="cards-tools">
@@ -1863,7 +1863,7 @@ window.NBPix = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '101';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '103';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -4543,7 +4543,8 @@ window.NBPix = (function () {
     var el = $('phoneView');
     try {
       if (el.requestFullscreen) el.requestFullscreen({ navigationUI: 'hide' }).then(function () {
-        if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function () {});
+        if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').then(refitPhoneQR, function () {});
+        refitPhoneQR();
       }, function () {});
     } catch (e) {}
     try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(function (w) { pvWake = w; }, function () {}); } catch (e) {}
@@ -4560,13 +4561,20 @@ window.NBPix = (function () {
     });
   }
   // QR을 카드 높이에 꽉 차게 (카드 위아래 여백만 남기고)
+  // (먼저 QR을 작게 줄인 뒤 카드 높이를 잰다: 세로 화면에서 커진 QR이 카드를 키운 채로 남지 않게)
   function fitPhoneQR() {
     var card = $('pvCard').querySelector('.qcard'), svg = card && card.querySelector('svg'); if (!svg) return;
+    svg.style.width = svg.style.height = '40px';
     var cs = getComputedStyle(card), box = card.querySelector('.qrbox'), bs = getComputedStyle(box);
     var h = card.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - parseFloat(bs.paddingTop) * 2;
     svg.style.width = svg.style.height = Math.max(120, Math.floor(h)) + 'px';
   }
-  window.addEventListener('resize', function () { if (!$('phoneView').hidden) fitPhoneQR(); });
+  // 휴대폰이 가로로 다 돌아간 뒤에도 다시 맞춘다 (돌아가는 데 시간이 걸려서 몇 번 나눠서)
+  function refitPhoneQR() { if ($('phoneView').hidden) return; fitPhoneQR(); [150, 400, 800].forEach(function (t) { setTimeout(function () { if (!$('phoneView').hidden) fitPhoneQR(); }, t); }); }
+  window.addEventListener('resize', refitPhoneQR);
+  window.addEventListener('orientationchange', refitPhoneQR);
+  document.addEventListener('fullscreenchange', refitPhoneQR);
+  if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', refitPhoneQR);
   function closePhoneView() {
     $('phoneView').hidden = true;
     try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
