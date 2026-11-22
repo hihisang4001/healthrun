@@ -71,6 +71,13 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--turf); outline-
 .seg button small { display: block; font-weight: 500; font-size: 13px; color: var(--ink-soft); }
 .seg button[aria-pressed="true"] { border-color: var(--turf); background: var(--turf-soft); color: var(--turf); }
 .seg button[aria-pressed="true"] small { color: var(--turf); }
+/* 오늘 장소: 출석 현황 격자와 같은 색 (운동장 = 초록, 강당 = 보라). 고른 쪽은 진하게 */
+#placeTrack { background: #E3F4E8; border-color: #9CCFAE; color: #1E6B3A; }
+#placeGym { background: #EBE3F8; border-color: #B9A3E3; color: #5B3A9A; }
+#placeTrack small { color: #1E6B3A; } #placeGym small { color: #5B3A9A; }
+#placeTrack[aria-pressed="false"], #placeGym[aria-pressed="false"] { opacity: .6; }
+#placeTrack[aria-pressed="true"] { background: #CDEBD6; border: 3px solid #1E6B3A; color: #1E6B3A; opacity: 1; }
+#placeGym[aria-pressed="true"] { background: #DCCDF4; border: 3px solid #5B3A9A; color: #5B3A9A; opacity: 1; }
 .go {
   border: 0; border-radius: 18px; padding: 20px; font-size: 24px; font-family: var(--display);
   background: var(--track); color: #fff; box-shadow: 0 6px 0 var(--track-deep);
@@ -112,6 +119,53 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--turf); outline-
 #reader video { width: 100% !important; height: 100% !important; object-fit: cover; }
 #reader.mirror video { transform: scaleX(-1); }
 #reader img[alt="Info icon"], #reader__dashboard_section_csr span { display: none !important; }
+/* 카메라가 화면 아래(아이패드를 거꾸로 세움): 위 = 끝내기 줄·학교 띠·결과, 아래 = 큰 카메라 창.
+   찍히면 결과가 카메라 창 위쪽 전체를 3초 동안 크게 덮는다 (카메라 창은 그대로 보여서 다음 학생이 바로 찍음) */
+.run.cb { grid-template-rows: auto auto 1fr auto; grid-template-areas: "foot" "strip" "fb" "cam"; }
+.run.cb .run-foot { grid-area: foot; border-top: 0; border-bottom: 1px solid var(--rule); padding: 8px 16px; }
+.run.cb .run-strip { grid-area: strip; }
+.run.cb .fb { grid-area: fb; }
+.run.cb .run-cam { grid-area: cam; padding: 4px 16px 14px; flex-direction: column; align-items: center; }
+.run.cb #reader { width: min(94vw, 52vh); }
+.run.cb .run-cam::before { content: '카드를 이 창에 보여 주세요 ↓'; font-weight: 900; color: var(--ink-soft); font-size: clamp(14px, 2.2vh, 20px); margin-bottom: 6px; }
+.run.cb .fb:not(.idle):not(.card) { grid-row: 1 / 4; grid-column: 1; z-index: 5; margin: 12px 16px; }
+.fb .laps { font-family: var(--display); font-size: clamp(26px, 7vw, 56px); margin-top: 10px; }
+.fb .lapt { font-size: clamp(20px, 5vw, 38px); font-weight: 900; margin-top: 6px; }
+/* 결과 카드 쌓기 (카메라 위쪽을 덮음) */
+.fbstack { position: absolute; top: 0; left: 0; right: 0; height: 0; z-index: 6; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; padding: 0 16px; box-sizing: border-box; pointer-events: none; transition: height .35s ease; }
+.fbstack:not(:empty) { padding-top: 12px; padding-bottom: 12px; background: var(--paper); }   /* 카드 사이로 뒤 글자가 비치지 않게 */
+.fbstack .card { margin: 0; flex: none; overflow: hidden; transition: height .35s ease, opacity .4s ease; }
+.fbstack .card.out { opacity: 0; }
+.run { position: fixed; }
+.run.camoff .run-cam { visibility: hidden; }
+#reader { transition: width .35s ease; }
+/* 반 높이 카드(2장 이상): 글자·초코를 줄이고 한 줄로 */
+.fbstack.half .card { padding: 8px 14px; }
+.fbstack.half .card .big { font-size: clamp(28px, 6.4vw, 54px); }
+.fbstack.half .card .sub { font-size: clamp(14px, 3vw, 22px); margin-top: 2px; }
+.fbstack.half .card .laps { font-size: clamp(20px, 4.6vw, 38px); margin-top: 4px; }
+.fbstack.half .card .choco .bub { font-size: clamp(13px, 2.6vw, 20px); padding: 6px 12px; margin-bottom: 8px; }
+.fbstack.half .card .choco img { width: min(100%, 150px); }
+.fbstack.half .card .rule { margin-top: 6px; padding: 6px 14px; }
+.fbstack.half .card .rule .rt { font-size: clamp(15px, 3.2vw, 24px); }
+.fbstack.half .card .rule .cyc { margin-top: 4px; }
+.fbstack.half .card .rule .cyc i { width: clamp(14px, 2.6vw, 22px); height: clamp(14px, 2.6vw, 22px); border-width: 3px; }
+/* 반 높이 출발 카드: 이름·문구 작게, 체크 주기는 한 줄로 */
+.fbstack.half .card.kickoff .big { font-size: clamp(24px, 5vw, 42px); }
+.fbstack.half .card.kickoff .rule { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
+.fbstack.half .card.kickoff .rule .cyc { margin-top: 0; }
+.fbstack.half .card.kickoff .rule .cyc .qr { font-size: clamp(14px, 2.6vw, 22px); padding: 2px 8px; }
+.fbstack.half .card.kickoff .rule .cyc .ar { font-size: clamp(16px, 3vw, 26px); }
+/* 결과 + 초코: 왼쪽 이름·바퀴, 오른쪽 큰 초코와 말풍선 */
+.fb.cho { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: 1fr auto auto 1fr; column-gap: 12px; }
+.fb.cho .big { grid-column: 1; grid-row: 2; }
+.fb.cho .laps { grid-column: 1; grid-row: 3; }
+.fb.cho .choco { grid-column: 2; grid-row: 1 / 5; align-self: center; display: flex; flex-direction: column; align-items: center; }
+.fb .choco[hidden] { display: none; }
+.fb .choco .bub { position: relative; background: #fff; color: #1C2420; font-weight: 900; font-size: clamp(16px, 3.4vw, 28px); line-height: 1.3; padding: 10px 16px; border-radius: 18px; word-break: keep-all; margin-bottom: 14px; box-shadow: 0 3px 0 rgba(0,0,0,.18); }
+.fb .choco .bub::after { content: ''; position: absolute; left: 50%; bottom: -12px; margin-left: -12px; border: 12px solid transparent; border-bottom: 0; border-top-color: #fff; }
+.fb .choco img { width: min(100%, 300px); image-rendering: pixelated; }
+.fb .best { margin-top: 14px; font-family: var(--display); font-size: clamp(24px, 6vw, 46px); background: linear-gradient(135deg, #FFF1B0, #FFD54A 55%, #F2B705); color: #5A3A00; padding: 8px 26px; border-radius: 999px; box-shadow: 0 3px 0 #B8860B; }
 .fb {
   margin: 14px 16px; border-radius: 26px; display: flex; flex-direction: column;
   align-items: center; justify-content: center; text-align: center; padding: 16px;
@@ -126,7 +180,18 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--turf); outline-
 }
 .fb.idle .big { color: var(--ink-soft); font-size: clamp(28px, 8vw, 54px); }
 .fb.ok { background: var(--ok); color: #fff; border: 3px solid var(--ok); }
-.fb.start { background: #2D6CC8; color: #fff; border: 3px solid #2D6CC8; }   /* 그날 첫 체크(출발) */
+.fb.kickoff { background: #2D6CC8; color: #fff; border: 3px solid #2D6CC8; }   /* 그날 첫 체크(출발) */
+.fb.kickoff.track { background: #1E6B3A; border-color: #1E6B3A; }   /* 운동장 = 초록 */
+.fb.kickoff.gym { background: #5B3A9A; border-color: #5B3A9A; }     /* 강당 = 보라 */
+.fb .rule { margin-top: 12px; background: rgba(255,255,255,.16); border-radius: 20px; padding: 10px 22px 12px; }
+.fb.kickoff .big { font-size: clamp(36px, 9vw, 72px); }
+.fb.kickoff .sub { font-size: clamp(16px, 3.6vw, 26px); margin-top: 4px; }
+.fb .rule .rt { font-size: clamp(20px, 4.4vw, 36px); font-weight: 900; word-break: keep-all; }
+.fb .rule .rt b { font-family: var(--display); font-weight: 400; color: #FFE27A; font-size: 1.15em; }
+.fb .rule .cyc { display: flex; align-items: center; justify-content: center; gap: clamp(6px, 1.4vw, 12px); margin-top: 10px; }
+.fb .rule .cyc i { width: clamp(22px, 4.6vw, 40px); height: clamp(22px, 4.6vw, 40px); border-radius: 50%; border: 4px solid #fff; }
+.fb .rule .cyc .ar { font-size: clamp(22px, 5vw, 40px); font-weight: 900; }
+.fb .rule .cyc .qr { font-family: var(--display); background: #fff; color: #1C2420; border-radius: 10px; padding: 4px 12px; font-size: clamp(18px, 4vw, 32px); }
 .fb .sub { white-space: pre-line; }
 .fb.win { background: var(--track); color: #fff; border: 3px solid var(--track); }
 .fb.warn { background: var(--warn); color: #241A00; border: 3px solid var(--warn); }
@@ -141,7 +206,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--turf); outline-
 .pill.wait { background: #FFF4D1; color: #6B4E00; }
 .pill.off { background: #FDECEC; color: var(--bad); }
 .pill.place { background: var(--turf); color: #fff; font-size: 15px; }
-.pill.place.gym { background: #2D6CC8; }
+.pill.place.gym { background: #5B3A9A; }   /* 강당 = 보라 (출석 현황·오늘 장소와 같은 색) */
 #stopBtn { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; }
 #stopBtn.holding { background: var(--bad); color: #fff; border-color: var(--bad); }
 .run-foot button {
@@ -478,6 +543,15 @@ body.tv .gb-head .map-zoom { font-size: clamp(14px, 1.9vmin, 30px); }
 .grow th, .grow td { padding: 7px 10px; border-bottom: 1px solid var(--rule); text-align: right; }
 .grow th:first-child, .grow td:first-child { text-align: left; }
 .grow thead th { font-size: 12px; color: var(--ink-soft); }
+/* 학년 평균과 비교 막대 */
+.cmp { display: grid; grid-template-columns: 8.5em minmax(0, 1fr); gap: 4px 12px; align-items: center; margin: 6px 0 10px; }
+.cmp .cl { font-weight: 700; font-size: 14px; }
+.cmp .cbar { position: relative; height: 14px; background: #EEF1ED; border-radius: 7px; }
+.cmp .cbar i { position: absolute; left: 0; top: 0; bottom: 0; background: #6FB98A; border-radius: 7px; }
+.cmp .cbar .cavg { position: absolute; top: -4px; bottom: -4px; width: 3px; margin-left: -1px; background: #1C2420; border-radius: 2px; }
+.cmp .ctxt { grid-column: 2; font-size: 13px; color: var(--ink-soft); }
+.cmp .ctxt b { color: var(--ink); }
+#dCompare { margin-bottom: 16px; }
 .t-split { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 900px) { .t-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -657,22 +731,11 @@ tr:last-child td { border-bottom: 0; }
 <section id="v-check" hidden>
   <div class="wrap">
     <div class="start" id="startPanel">
-      <h1>오늘도 한 바퀴씩,<br>카드를 찍고 달려요</h1>
-      <p class="lead">한 바퀴 돌 때마다 카드를 화면에 보여 주면 자동으로 기록돼요.</p>
-
       <div class="field">
         <span>오늘 장소</span>
         <div class="seg" id="placeSeg">
           <button type="button" id="placeTrack" data-place="운동장" aria-pressed="true">운동장<small id="trackLbl">한 바퀴마다 체크</small></button>
           <button type="button" id="placeGym" data-place="강당" aria-pressed="false">강당<small id="gymLbl">5바퀴마다 체크</small></button>
-        </div>
-      </div>
-
-      <div class="field">
-        <span>카메라</span>
-        <div class="seg" id="camSeg">
-          <button type="button" id="camFront" data-cam="user" aria-pressed="true">앞 카메라<small>화면이 학생 쪽 (추천)</small></button>
-          <button type="button" id="camBack" data-cam="environment" aria-pressed="false">뒤 카메라<small>선생님이 들고 찍을 때</small></button>
         </div>
       </div>
 
@@ -693,9 +756,14 @@ tr:last-child td { border-bottom: 0; }
       <div class="rs-school" id="rsSchool">우리 학교 오늘 0바퀴</div>
       <div class="rs-grades" id="rsGrades"></div>
     </div>
-    <div class="fb idle" id="fb" aria-live="assertive">
+    <div class="fbstack" id="fbStack" aria-live="assertive"></div>
+    <div class="fb idle" id="fb">
       <div class="big" id="fbBig">카드를 보여 주세요</div>
       <div class="sub" id="fbSub"></div>
+      <div class="laps" id="fbLaps" hidden></div>
+      <div class="lapt" id="fbLapT" hidden></div>
+      <div class="choco" id="fbChoco" hidden><div class="bub" id="fbBub"></div><img id="fbDog" alt="초코"></div>
+      <div class="rule" id="fbRule" hidden></div>
       <div class="badge" id="fbBadge" hidden></div>
     </div>
     <div class="run-foot">
@@ -868,12 +936,12 @@ tr:last-child td { border-bottom: 0; }
         <button type="button" class="t-btn" id="dClose">닫기</button>
       </header>
       <div class="kpis" id="dKpis"></div>
+      <div id="dCompare"></div>
       <div id="dGrowth"></div>
       <h3 id="dChartTitle">날짜별 바퀴</h3>
       <div class="chart" id="dChart"></div>
       <h3 id="dPaceTitle" style="margin-top:14px">페이스 변화</h3>
       <div class="chart" id="dPace"></div>
-      <div class="tablebox" id="dDaysBox" style="margin-top:12px"><table class="t-tbl" id="dDays"></table></div>
       <div id="dNotes"></div>
     </div>
   </dialog>
@@ -955,8 +1023,7 @@ window.NB_LIBS = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var MILESTONE_M = 10000;
-  var APP_VER = '68';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '80';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -1037,7 +1104,7 @@ window.NB_LIBS = (function () {
     Array.prototype.forEach.call(document.querySelectorAll('.topbar a'), function (a) {
       a.classList.toggle('on', a.getAttribute('data-view') === view);
     });
-    if (view === 'check') initCheck();
+    if (view === 'check' && location.hash !== '#checkdemo') initCheck();
     if (section === 'board') {
       try { initBoard(); } catch (e) { window.nbShowErr('현황판 시작', e); }
       try { layoutBoard(); } catch (e) { window.nbShowErr('지도 배치', e); }
@@ -1112,7 +1179,9 @@ window.NB_LIBS = (function () {
     $('placeTrack').setAttribute('aria-pressed', S.place === '운동장' ? 'true' : 'false');
     $('placeGym').setAttribute('aria-pressed', S.place === '강당' ? 'true' : 'false');
     bindSeg('placeSeg', 'place');
-    bindSeg('camSeg', 'facing');
+    S.facing = 'user';   // 항상 앞 카메라 (아이패드를 거꾸로 세워 카메라가 화면 아래)
+    S.camPos = 'bottom';
+
     $('goBtn').addEventListener('click', startRun);
     bindHoldToStop($('stopBtn'));
     updateQueueInfo();
@@ -1236,6 +1305,8 @@ window.NB_LIBS = (function () {
     $('topbar').hidden = true;
     $('demoNote').hidden = true;
     $('runPanel').hidden = false;
+    $('runPanel').classList.toggle('cb', S.camPos === 'bottom');
+    try { if (window.nbApplyOutfit) window.nbApplyOutfit(); } catch (e) {}   // 초코가 오늘 착장으로 응원   // 카메라가 아래: 위에 결과, 아래에 큰 카메라 창
     $('reader').classList.toggle('mirror', S.facing === 'user');
     idle();
     renderToday();
@@ -1284,6 +1355,7 @@ window.NB_LIBS = (function () {
   });
 
   function onScan(text) {
+    if (S.camHidden) return;   // 결과 카드 4장으로 카메라 화면이 숨어 있는 동안엔 읽지 않는다
     var id = String(text || '').trim().toUpperCase();
     var now = Date.now();
     if (id === S.lastText && now - S.lastTextAt < 3000) return; // 카메라가 같은 카드를 연달아 읽는 것 무시
@@ -1307,6 +1379,8 @@ window.NB_LIBS = (function () {
     var t = S.today[id] || (S.today[id] = { n: 0, m: 0, start: false, last: 0 });
     var first = t.n === 0;   // 오늘 첫 체크 = 출발 (출석 확인, 거리 0)
     var gym = S.place === '강당';
+    // 오늘 장소별 체크 수 (서버에서 받은 기록에는 없어서, 처음엔 지금 장소로 짐작)
+    if (t.tn == null || t.gn == null) { var done0 = Math.max(0, t.n - (t.start ? 1 : 0)); t.tn = gym ? 0 : done0; t.gn = gym ? done0 : 0; }
     var m = first ? 0 : (gym ? S.settings.gymM : S.settings.trackM);
     var before = S.totals[id] || 0, after = before + m;
     S.totals[id] = after;
@@ -1320,49 +1394,124 @@ window.NB_LIBS = (function () {
     sync();
 
     if (first) {
-      feedback('start', p.name, '출발! 오늘도 신나게 달려봐요!');
+      // 출발: 오늘 장소의 체크 주기를 색과 그림으로 (운동장 = 초록·한 바퀴마다, 강당 = 보라·5바퀴마다)
+    var dots = '', nDot = gym ? 5 : 1;
+    for (var di = 0; di < nDot; di++) dots += '<i></i>';
+    feedback(gym ? 'kickoff gym' : 'kickoff track', p.name, '출발! 오늘도 신나게 달려봐요!', '', {
+      rule: '<div class="rt">' + (gym ? '강당은 <b>5바퀴</b>마다 찍어요' : '<b>한 바퀴</b> 돌 때마다 찍어요') + '</div>' +
+        '<div class="cyc">' + dots + '<span class="ar">→</span><span class="qr">QR</span></div>'
+    });
       beep('ok');
       renderToday(gradeOf(p));
       return;
     }
-    var laps = t.n - (t.start ? 1 : 0);   // 오늘 바퀴 체크 수 (출발 빼고)
-    var sub = '오늘 ' + laps + '번째 · 누적 ' + km(after) + 'km';
-    // 랩타임: 바로 앞 체크(출발 포함)부터 걸린 시간. 너무 짧거나(30초 미만) 길면(15분 넘게 쉼) 알려 주지 않는다
-    if (lapMs >= 30000 && lapMs <= 900000) {
-      sub = (gym ? '강당 5바퀴를 도는 데 ' : '한 바퀴 도는 데 ') + lapText(lapMs) + '가 걸렸어요!\n' + sub;
-    }
-    var crossed = Math.floor(after / MILESTONE_M) > Math.floor(before / MILESTONE_M);
-    if (crossed) {
-      feedback('win', p.name, sub, '누적 ' + Math.floor(after / MILESTONE_M) * 10 + 'km 달성! 🏅');
-      beep('win');
-    } else {
-      feedback('ok', p.name, sub);
-      beep('ok');
-    }
-    renderToday(gradeOf(p));   // 찍은 학생의 학년 칸이 잠깐 커진다
+    // 오늘 몇 바퀴째: 운동장은 체크 1번 = 1바퀴, 강당은 체크 1번 = 5바퀴 (실제로 돈 바퀴)
+    if (gym) t.gn++; else t.tn++;
+    var lapsToday = t.tn + t.gn * 5;
+    // 체크 화면에는 랩타임을 보여 주지 않는다 (줄 서서 기다린 시간이 들어가 빨리 달려도 낙담할 수 있어서). 기록은 교사용에서 본다
+    // 초코의 응원: 이 바퀴로 학교가 거점에 도착하면 특별한 말, 아니면 '오늘 보탠 거리'와 짧은 응원을 번갈아
+    var stop = stopReached(schoolM() - m, schoolM());
+    var talk = stop ? '네가 나를 ' + stop + '에 도착시켰어! 고마워!'
+      : lapsToday % 2 ? '오늘 네가 나를 ' + distTxt(t.m) + ' 데려다 줬어!'
+      : CHEERS[Math.floor(Math.random() * CHEERS.length)];
+    saveSnap();
+    feedback('ok cho', p.name, '', '', { laps: '오늘 ' + lapsToday + '바퀴째', choco: talk });
+    beep(stop ? 'win' : 'ok');    renderToday(gradeOf(p));   // 찍은 학생의 학년 칸이 잠깐 커진다
   }
 
+  var CHEERS = ['같이 달리니까 신나!', '조금만 더 힘내자!', '네 발걸음이 나를 움직여!', '최고야, 계속 가 보자!', '숨 고르고 한 바퀴 더!', '우리 같이 전국 일주 하자!', '오늘도 멋지게 달리는구나!'];
+  function schoolM() { var t = 0; Object.keys(S.totals).forEach(function (k) { t += S.totals[k] || 0; }); return t; }
+  function distTxt(m) { return m >= 1000 ? (Math.round(m / 100) / 10) + 'km' : Math.round(m) + 'm'; }
+  // 학교 누적 거리가 before → after로 늘 때 넘은 거점 이름 (코스는 한 바퀴를 돌면 다시 처음부터)
+  function stopReached(before, after) {
+    var route = S.route || []; if (route.length < 2 || after <= before) return '';
+    var loop = route[route.length - 1].km * 1000; if (!(loop > 0)) return '';
+    var lapB = Math.floor(before / loop), pb = before - lapB * loop, pa = after - lapB * loop;
+    for (var i = 1; i < route.length; i++) { var km = route[i].km * 1000; if (km > pb && km <= pa) return route[i].name; }
+    return '';
+  }
+  window.nbStopReached = stopReached;   // 미리보기 시험용
   function lapText(ms) {   // 108000 → '1분 48초'
     var s = Math.round(ms / 1000), mm = Math.floor(s / 60), ss = s % 60;
     return (mm ? mm + '분 ' : '') + ss + '초';
   }
-  function feedback(kind, big, sub, badge) {
-    var fb = $('fb');
-    fb.className = 'fb ' + kind;
-    $('fbBig').textContent = big;
-    $('fbSub').textContent = sub || '';
-    $('fbBadge').hidden = !badge;
-    $('fbBadge').textContent = badge || '';
-    clearTimeout(S.fbTimer);
-    S.fbTimer = setTimeout(idle, kind === 'win' ? 4500 : 2600);
+  /* 결과 카드: 찍힐 때마다 카드 한 장. 최대 4장, 각 3초 뒤 흐려지며 사라진다.
+     1장 = 카메라 위 전체 / 2장 = 반 높이 2장(카메라 그대로) / 3장 = 반 높이 3장(카메라를 한 장만큼 줄임) / 4장 = 카메라를 숨기고 전체 화면.
+     새 카드는 아래(카메라 쪽)에서 올라오며 앞 카드를 밀어 올린다 */
+  var CARD_MS = 3000, CARD_MAX = 4;
+  function feedback(kind, big, sub, badge, info) {
+    info = info || {};
+    var st = $('fbStack');
+    var card = document.createElement('div');
+    card.className = 'fb card ' + kind;
+    var h = '<div class="big">' + esc(big) + '</div>';
+    if (sub) h += '<div class="sub">' + esc(sub) + '</div>';
+    if (info.laps) h += '<div class="laps">' + esc(info.laps) + '</div>';
+    if (info.rule) h += '<div class="rule">' + info.rule + '</div>';
+    if (badge) h += '<div class="badge">' + esc(badge) + '</div>';
+    if (info.choco) h += '<div class="choco"><div class="bub">' + esc(info.choco) + '</div><img class="fbdog" alt="초코"></div>';
+    card.innerHTML = h;
+    // 4장이 넘으면 가장 오래된 카드부터 뺀다 (카메라가 숨어 있을 땐 읽지 않아서 보통은 생기지 않음)
+    var cards = st.querySelectorAll('.card:not(.out)');
+    if (cards.length >= CARD_MAX) removeCard(cards[0], true);
+    card.style.height = '0px'; card.style.opacity = '0';
+    st.appendChild(card);
+    layoutCards();
+    card.getBoundingClientRect();   // 시작 모양을 확정한 뒤 크기를 바꿔야 올라오는 움직임이 보인다
+    card.style.opacity = '';
+    layoutCards();
+    startDogAnim();
+    card._t = setTimeout(function () { removeCard(card); }, CARD_MS);
   }
-  function idle() {
+  function removeCard(card, now) {
+    if (!card || card.classList.contains('out')) return;
+    clearTimeout(card._t);
+    card.classList.add('out');
+    card.style.height = '0px'; card.style.opacity = '0'; card.style.marginTop = card.style.marginBottom = '0px';
+    layoutCards();
+    setTimeout(function () { if (card.parentNode) card.parentNode.removeChild(card); layoutCards(); }, now ? 0 : 450);
+  }
+  // 카드 수에 맞춰 카드 높이·카메라 크기를 정한다
+  function layoutCards() {
+    var run = $('runPanel'), st = $('fbStack'), cam = run.querySelector('.run-cam');
+    if (!run || run.hidden) return;
+    var cards = Array.prototype.filter.call(st.querySelectorAll('.card'), function (c) { return !c.classList.contains('out'); });
+    var n = cards.length, H = run.clientHeight;
+    // 카드가 없을 때 카메라 창 위쪽 높이(= 결과 한 장 자리)를 기억해 둔다
+    if (!n || !S.topH) { S.topH = cam.offsetTop; }
+    var topH = S.topH || H * .45, gap = 10;
+    var stackH = n === 0 ? 0 : n <= 2 ? topH : n === 3 ? topH * 1.5 : H;
+    var cardH = n === 1 ? topH - 24 : n === 4 ? (H - 24 - gap * 3) / 4 : (topH - 24 - gap) / 2;
+    st.style.height = stackH + 'px';
+    st.classList.toggle('half', n >= 2);
+    cards.forEach(function (c) { c.style.height = Math.max(0, cardH) + 'px'; });
+    // 3장이면 카메라 창을 카드 반 장만큼 줄이고, 4장이면 숨긴다 (숨은 동안엔 카드를 읽지 않음)
+    S.camHidden = n >= CARD_MAX;
+    run.classList.toggle('camoff', S.camHidden);
+    var rd = $('reader');
+    if (n === 3) { var avail = H - stackH - 40; rd.style.width = Math.max(120, Math.min(window.innerWidth * .94, avail)) + 'px'; }
+    else rd.style.width = '';
+  }
+  // 카드 속 초코들이 함께 달린다
+  function startDogAnim() {
+    if (S.dogTimer) return;
+    var fi = 0;
+    S.dogTimer = setInterval(function () {
+      var imgs = document.querySelectorAll('#fbStack .fbdog'), urls = (typeof dogURLs !== 'undefined' && dogURLs.length) ? dogURLs : [];
+      if (!imgs.length || !urls.length) { clearInterval(S.dogTimer); S.dogTimer = null; return; }
+      fi = (fi + 1) % urls.length;
+      Array.prototype.forEach.call(imgs, function (im) { im.src = urls[fi]; });
+    }, 110);
+  }
+  window.addEventListener('resize', function () { S.topH = 0; if (S.running || !$('runPanel').hidden) { var st = $('fbStack'); if (!st.querySelector('.card:not(.out)')) layoutCards(); } });  function idle() {
     $('fb').className = 'fb idle';
     $('fbBig').textContent = '카드를 보여 주세요';
     $('fbSub').textContent = S.place === '강당' ? '강당 5바퀴마다 한 번씩' : '운동장 한 바퀴마다 한 번씩';
+    $('fbSub').hidden = false;
+    $('fbLaps').hidden = $('fbLapT').hidden = $('fbChoco').hidden = $('fbRule').hidden = true;
     $('fbBadge').hidden = true;
-  }
-  function renderToday(pulseGrade) {
+    var st = $('fbStack'); if (st) { st.innerHTML = ''; S.topH = 0; layoutCards(); }
+  }  function renderToday(pulseGrade) {
     var n = 0, m = 0;
     Object.keys(S.today).forEach(function (k) { var t = S.today[k]; n += t.n - (t.start ? 1 : 0); m += t.m; });
     $('todayInfo').textContent = '오늘 ' + n + '회 · ' + km(m) + 'km';
@@ -2273,6 +2422,7 @@ window.NB_LIBS = (function () {
     todayLook = pickOutfit(todayStr(), wxNow);
     setDogOutfit(todayLook.key);
   }
+  window.nbApplyOutfit = applyOutfit;   // 체크 화면에서도 오늘 착장으로
   /* 미리보기에서 시험: nbOutfitTest('sejong') → 착장만 바꿔 보기, nbDayTest('2027-10-08') → 그날이면 무엇을 입는지 */
   window.nbOutfitTest = function (key) { setDogOutfit(key); };
   window.nbDayTest = function (dateStr, wx) {
@@ -3642,18 +3792,30 @@ window.NB_LIBS = (function () {
     T.dlgId = id;
     var all = allDates(), rg = periodRange(T.period);
     var dates = all.filter(function (x) { return x >= rg[0] && x <= rg[1]; });
-    var s = sumStats(id, dates), sa = sumStats(id, all), lr = lastRun(id, all);
+    var s = sumStats(id, dates), ls = lapStats(id, dates);
     $('dName').innerHTML = gdot(p.grade) + esc(p.name) + ' <small style="font-size:15px;font-weight:500;color:var(--ink-soft)">' + esc(p.grade ? p.grade + '학년 · ' : '') + esc(p.id) + '</small>';
-    $('dKpis').innerHTML =
-      kpi(PERIOD_NAME[T.period] + ' 출석', s.y, '/' + s.base + '일', '결석 ' + (s.x ? '<b style="color:var(--bad)">' + s.x + '</b>' : 0) + ' · 기타 ' + s.o + (s.rate == null ? '' : ' · 출석률 ' + Math.round(s.rate * 100) + '%')) +
-      kpi(PERIOD_NAME[T.period] + ' 바퀴', Math.round(lapsOf(s.m)), '바퀴', f1(s.m / 1000) + 'km · 하루 평균 ' + (s.y ? f1(lapsOf(s.m) / s.y) : '0') + '바퀴') +
-      kpi('전체 누적', f1(sa.m / 1000), 'km', '출석 ' + sa.y + '/' + sa.base + '일 · ' + Math.round(lapsOf(sa.m)) + '바퀴') +
-      kpi('마지막 참여', lr ? mdw(lr) : '-', '');
-    // 랩타임 (운동장 기록만)
-    var ls = lapStats(id, dates);
-    $('dKpis').innerHTML +=
-      kpi(PERIOD_NAME[T.period] + ' 평균 랩타임', ls.avg == null ? '-' : secTxt(ls.avg), '', ls.n ? '운동장 바퀴 ' + ls.n + '개 평균' : '운동장 랩타임 기록이 없어요') +
-      kpi(PERIOD_NAME[T.period] + ' 최고 랩타임', ls.best == null ? '-' : secTxt(ls.best), '', ls.bestDate ? mdw(ls.bestDate) + ' · 운동장' : '');
+    // 표에 없는 것만: 출석·결석·기타 수
+    $('dKpis').innerHTML = kpi(PERIOD_NAME[T.period] + ' 출석', s.y, '일', '결석 ' + (s.x ? '<b style="color:var(--bad)">' + s.x + '</b>' : 0) + ' · 기타 ' + s.o);
+
+    // 학년 평균과 비교 (고른 기간): 하루 평균 바퀴, 평균 랩타임(운동장)
+    var mates = (d.roster || []).filter(function (q) { return q.grade === p.grade; }), dv = [], lv = [];
+    mates.forEach(function (q) {
+      var st = sumStats(q.id, dates); if (st.y) dv.push(lapsOf(st.m) / st.y);
+      var la = lapStats(q.id, dates).avg; if (la != null) lv.push(la);
+    });
+    var meanOf = function (a) { if (!a.length) return null; var t = 0; a.forEach(function (x) { t += x; }); return t / a.length; };
+    var myDay = s.y ? lapsOf(s.m) / s.y : null, gDay = meanOf(dv), gLap = meanOf(lv), myLap = ls.avg;
+    var cmpRow = function (label, mine, avgv, maxv, txt, note) {
+      if (mine == null || avgv == null) return '<div class="cmp"><div class="cl">' + label + '</div><div class="ctxt" style="color:var(--ink-soft)">기록이 없어요</div></div>';
+      return '<div class="cmp"><div class="cl">' + label + '</div><div class="cbar"><i style="width:' + Math.min(100, mine / maxv * 100).toFixed(1) + '%"></i>' +
+        '<b class="cavg" style="left:' + Math.min(100, avgv / maxv * 100).toFixed(1) + '%" title="학년 평균"></b></div><div class="ctxt"><b>' + txt(mine) + '</b> ' + note + '</div></div>';
+    };
+    var dayNote = myDay == null || gDay == null ? '' : (function () { var x = Math.round((myDay - gDay) * 10) / 10; return '· 학년 평균(' + f1(gDay) + '바퀴)' + (x === 0 ? '과 같아요' : '보다 ' + f1(Math.abs(x)) + '바퀴 ' + (x > 0 ? '많아요' : '적어요')); })();
+    var lapNote = myLap == null || gLap == null ? '' : (function () { var x = Math.round(myLap - gLap); return '· 학년 평균(' + secTxt(gLap) + ')' + (x === 0 ? '과 같아요' : '보다 ' + Math.abs(x) + '초 ' + (x < 0 ? '빨라요' : '느려요')); })();
+    $('dCompare').innerHTML = '<h3>학년 평균과 비교 <small style="font-weight:500;color:var(--ink-soft)">' + PERIOD_NAME[T.period] + ' · 막대 = 이 학생, 세로선 = ' + esc(p.grade) + '학년 평균 · 랩타임은 운동장 기록만</small></h3>' +
+      cmpRow('하루 평균 바퀴', myDay, gDay, Math.max(myDay || 0, Math.max.apply(null, dv.concat([1]))) * 1.1, function (v) { return f1(v) + '바퀴'; }, dayNote) +
+      cmpRow('평균 랩타임', myLap, gLap, Math.max(myLap || 0, Math.max.apply(null, lv.concat([60]))) * 1.1, secTxt, lapNote);
+
     // 성장 비교: 처음 나온 달 vs 가장 최근에 나온 달 (하루 평균 바퀴, 평균 랩타임)
     var monthsOn = [];
     all.forEach(function (dt) { if (dayStatus(id, dt).k === 'y') { var mk = dt.slice(0, 7); if (monthsOn.indexOf(mk) < 0) monthsOn.push(mk); } });
@@ -3672,7 +3834,8 @@ window.NB_LIBS = (function () {
         '</tbody></table>';
     } else {
       $('dGrowth').innerHTML = '<p class="empty-txt" style="margin:-6px 0 14px">기록이 두 달에 걸쳐 쌓이면 처음 한 달과 최근 한 달을 비교해 보여 줘요.</p>';
-    }    var byWeek = dates.length > 40, items = [], max = 0;
+    }
+    var byWeek = dates.length > 40, items = [], max = 0;
     if (byWeek) {
       var wk = {}, order = [];
       dates.forEach(function (dt) { var k = weekOf(dt); if (!wk[k]) { wk[k] = { m: 0, y: 0, n: 0 }; order.push(k); } var st = dayStatus(id, dt); wk[k].m += st.m; wk[k].n++; if (st.k === 'y') wk[k].y++; });
@@ -3695,14 +3858,8 @@ window.NB_LIBS = (function () {
       return { label: md(x.date), v: x.avg, txt: secShort(x.avg), color: x.avg === fastest ? '#22704A' : '#2D6CC8',
         title: mdw(x.date) + ' · 평균 ' + secTxt(x.avg) + ' · 가장 빠른 ' + secTxt(x.best) + ' · ' + x.n + '바퀴' };
     });
-    $('dPaceTitle').innerHTML = '페이스 변화 <small style="font-weight:500;color:var(--ink-soft)">날짜별 평균 랩타임 · 막대가 짧을수록 빨라요</small>';
+    $('dPaceTitle').innerHTML = '페이스 변화 <small style="font-weight:500;color:var(--ink-soft)">운동장 랩타임 기준 · 날짜별 평균 랩타임 · 막대가 짧을수록 빨라요</small>';
     barChart($('dPace'), paceItems, maxS * 1.15, 170);
-    // 날짜별 랩타임 표 (최근 날짜부터)
-    $('dDaysBox').hidden = !pd2.length;
-    $('dDays').innerHTML = '<thead><tr><th>날짜</th><th class="r">랩타임 수</th><th class="r">평균 랩타임</th><th class="r">최고 랩타임</th></tr></thead><tbody>' +
-      pd2.slice().reverse().slice(0, 12).map(function (x) {
-        return '<tr><td>' + mdw(x.date) + '</td><td class="r num">' + x.n + '</td><td class="r num">' + secTxt(x.avg) + '</td><td class="r num">' + secTxt(x.best) + '</td></tr>';
-      }).join('') + '</tbody>';
     var ns = Object.keys(d.notes[id] || {}).sort().filter(function (dt) { return dt >= rg[0] && dt <= rg[1]; });
     $('dNotes').innerHTML = ns.length ? '<div class="notes"><b>출석부에 적은 말</b> · ' + ns.map(function (dt) { return mdw(dt) + ' ' + esc(d.notes[id][dt]); }).join(' · ') + '</div>' : '';
     if (!$('tDlg').open) $('tDlg').showModal();
@@ -3822,19 +3979,42 @@ window.NB_LIBS = (function () {
       getRoster: function () { return { url: '', roster: roster }; },
       getTeacher: function () {
         var now = new Date(), days = {};
-        var gym = {}, place = {};
+        var gym = {}, place = {}, track = {};
         log.forEach(function (r) {
           var x = days[r.date] || (days[r.date] = {}); x[r.id] = (x[r.id] || 0) + r.m;
           if (!r.start) { var pl = place[r.date] || (place[r.date] = { t: 0, g: 0 }); if (r.gym) pl.g++; else pl.t++; }
           if (r.gym) (gym[r.date] || (gym[r.date] = {}))[r.id] = 1;
+          if (!r.start && !r.gym) { var tr = track[r.date] || (track[r.date] = {}); tr[r.id] = (tr[r.id] || 0) + 1; }
         });
         var td = dstr(now);
-        return { roster: roster, settings: settings, days: days, gym: gym, place: place, laps: lapTimes(), notes: notes, sem2: '', today: td,
+        return { roster: roster, settings: settings, days: days, gym: gym, place: place, track: track, laps: lapTimes(), notes: notes, sem2: '', today: td,
           lastAt: td + ' 09:08',
           updated: (now.getMonth() + 1) + '월 ' + now.getDate() + '일 ' + ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2) };
       }
     };
   })();
+
+  /* 시연: 주소 끝을 #checkdemo로 열면 카메라 없이 학생 4명이 차례로 찍는 모습을 되풀이해 보여 준다.
+     화면만 보여 주고 기록은 하나도 저장하지 않는다 (실제 시트에 연결돼 있어도 안전) */
+  function runCheckDemo() {
+    ['startPanel', 'topbar', 'demoNote'].forEach(function (i) { if ($(i)) $(i).hidden = true; });
+    var rp = $('runPanel'); rp.hidden = false; rp.classList.add('cb');
+    $('placeInfo').textContent = '운동장 · 한 바퀴마다'; $('placeInfo').className = 'pill place';
+    try { if (window.nbApplyOutfit) window.nbApplyOutfit(); } catch (e) {}
+    idle();
+    var kids = [
+      ['김하늘', 'ok cho', { laps: '오늘 3바퀴째', choco: '오늘 네가 나를 960m 데려다 줬어!' }],
+      ['이도윤', 'ok cho', { laps: '오늘 4바퀴째', choco: '조금만 더 힘내자!' }],
+      ['박서연', 'kickoff track', { rule: '<div class="rt"><b>한 바퀴</b> 돌 때마다 찍어요</div><div class="cyc"><i></i><span class="ar">→</span><span class="qr">QR</span></div>' }, '출발! 오늘도 신나게 달려봐요!'],
+      ['최지호', 'ok cho', { laps: '오늘 5바퀴째', choco: '네가 나를 울산에 도착시켰어! 고마워!' }]
+    ];
+    function round() {
+      kids.forEach(function (k, i) { setTimeout(function () { feedback(k[1], k[0], k[3] || '', '', k[2]); }, i * 600); });
+    }
+    round();
+    setInterval(round, 8000);   // 4명이 찍고(약 3초) → 카드가 사라지고(약 3초) → 다시
+  }
+  if (location.hash === '#checkdemo') setTimeout(runCheckDemo, 600);
 
   /* 미리보기에서 카메라 없이 시험해 보기: 콘솔에서 nbTestScan('NB03') */
   window.nbTestScan = function (id) { onScan(id); };
