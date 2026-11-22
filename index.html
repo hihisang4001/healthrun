@@ -1028,7 +1028,7 @@ window.NB_LIBS = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '90';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '91';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -1367,12 +1367,10 @@ window.NB_LIBS = (function () {
     if (S.camHidden) return;   // 결과 카드 4장으로 카메라 화면이 숨어 있는 동안엔 읽지 않는다
     var id = String(text || '').trim().toUpperCase();
     var now = Date.now();
-    // 같은 카드는 5초 안에 다시 처리하지 않는다. 카드마다 따로 기억하고(다른 카드가 사이에 읽혀도 유지),
-    // 카메라 앞에 계속 대고 있으면 읽힐 때마다 5초를 다시 센다 → 카드를 치운 뒤 5초가 지나야 다시 처리
-    S.seenAt = S.seenAt || {};
-    var lastSeen = S.seenAt[id] || 0;
-    S.seenAt[id] = now;
-    if (now - lastSeen < 5000) return;
+    // 이 학생의 결과 카드가 아직 화면에 있으면 그 카드는 읽지 않는다. 카드가 사라지면 다시 읽는다
+    var showing = Array.prototype.some.call(document.querySelectorAll('#fbStack .card'), function (c) { return c.getAttribute('data-id') === id && !c.classList.contains('out'); });
+    if (showing) return;
+    S.scanId = id;   // 이번에 만들 카드에 붙일 학생 번호
 
     if (todayStr() !== S.todayDate) { S.todayDate = todayStr(); S.today = {}; }
 
@@ -1554,6 +1552,7 @@ window.NB_LIBS = (function () {
     var st = $('fbStack');
     var card = document.createElement('div');
     card.className = 'fb card ' + kind;
+    if (S.scanId) { card.setAttribute('data-id', S.scanId); S.scanId = ''; }
     var h = '<div class="big">' + esc(big) + '</div>';
     if (sub) h += '<div class="sub">' + esc(sub) + '</div>';
     if (info.laps) h += '<div class="laps">' + esc(info.laps) + '</div>';
