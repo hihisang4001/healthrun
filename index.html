@@ -170,6 +170,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--turf); outline-
 .fbstack:not(:empty) { padding-top: 12px; padding-bottom: 12px; background: var(--paper); }   /* 카드 사이로 뒤 글자가 비치지 않게 */
 .fbstack .card { margin: 0; flex: none; overflow: hidden; transition: height .35s ease, opacity .4s ease; }
 .fbstack .card.out { opacity: 0; }
+.fbstack.lone { justify-content: flex-start; }   /* 작은 카드 한 장만 남으면 맨 위에 */
 .run { position: fixed; }
 .run.camoff .run-cam { visibility: hidden; }
 #reader { transition: width .35s ease; }
@@ -1106,7 +1107,7 @@ window.NB_LIBS = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '94';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '95';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -1678,7 +1679,17 @@ window.NB_LIBS = (function () {
     S.lastGone = Date.now();
     card.style.height = '0px'; card.style.opacity = '0'; card.style.marginTop = card.style.marginBottom = '0px';
     layoutCards();
-    setTimeout(function () { if (card.parentNode) card.parentNode.removeChild(card); layoutCards(); }, now ? 0 : 450);
+    setTimeout(function () {
+      // 다 줄어든 카드를 빼면 남은 카드가 카드 사이 틈만큼 움직이므로, 그 움직임도 부드럽게
+      var st = $('fbStack'), rest = Array.prototype.filter.call(st.querySelectorAll('.card'), function (c) { return c !== card; });
+      var before = rest.map(function (c) { return c.getBoundingClientRect().top; });
+      if (card.parentNode) card.parentNode.removeChild(card);
+      layoutCards();
+      rest.forEach(function (c, i) {
+        var dy = before[i] - c.getBoundingClientRect().top;
+        if (Math.abs(dy) > 1 && c.animate) c.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: 300, easing: 'ease-out' });
+      });
+    }, now ? 0 : 450);
     scheduleCards();   // 남은 카드는 지금부터 최소 1초 더
   }
   // 카드 수에 맞춰 카드 높이·카메라 크기를 정한다
@@ -1690,10 +1701,17 @@ window.NB_LIBS = (function () {
     // 카드가 없을 때 카메라 창 위쪽 높이(= 결과 한 장 자리)를 기억해 둔다
     if (!n || !S.topH) { S.topH = cam.offsetTop; }
     var topH = S.topH || H * .45, gap = 10;
+    // 한 번 작아진 카드(2장 이상일 때 있던 카드)는 끝까지 작게: 마지막 한 장이 남아도 다시 커지지 않는다
+    if (n >= 2) cards.forEach(function (c) { c.classList.add('small'); });
+    var smallOne = n === 1 && cards[0].classList.contains('small');
+    // 작은 카드 한 장만 남으면 결과 자리 맨 위로 (위 카드가 줄어드는 동안 부드럽게 올라간다).
+    // 그 상태에서 새 카드가 오면 남은 카드는 위에 둔 채 아래에 새 카드가 들어온다
+    if (n === 0 || n >= 3) S.lone = false; else if (smallOne) S.lone = true;
+    st.classList.toggle('lone', !!S.lone);
     var stackH = n === 0 ? 0 : n <= 2 ? topH : n === 3 ? topH * 1.5 : H;
-    var cardH = n === 1 ? topH - 24 : n === 4 ? (H - 24 - gap * 3) / 4 : (topH - 24 - gap) / 2;
+    var cardH = n === 1 && !smallOne ? topH - 24 : n === 4 ? (H - 24 - gap * 3) / 4 : (topH - 24 - gap) / 2;
     st.style.height = stackH + 'px';
-    st.classList.toggle('half', n >= 2);
+    st.classList.toggle('half', n >= 2 || smallOne);
     cards.forEach(function (c) { c.style.height = Math.max(0, cardH) + 'px'; });
     // 3장이면 카메라 창을 카드 반 장만큼 줄이고, 4장이면 숨긴다 (숨은 동안엔 카드를 읽지 않음)
     S.camHidden = n >= CARD_MAX;

@@ -3,7 +3,7 @@
  * 한 번 인터넷으로 열어 두면, 운동장처럼 와이파이가 없는 곳에서도 화면이 다시 열린다.
  * 체크 화면을 고쳐서 다시 올릴 때는 아래 VERSION 숫자를 지금보다 하나 올린다 (예: nb-v9 → nb-v10).
  */
-var VERSION = 'nb-v94';
+var VERSION = 'nb-v95';
 var PRECACHE = [
   './',
   './index.html',
