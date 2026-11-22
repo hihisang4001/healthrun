@@ -156,7 +156,12 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--turf); outline-
 .fbstack.half .card.kickoff .rule .cyc { margin-top: 0; }
 .fbstack.half .card.kickoff .rule .cyc .qr { font-size: clamp(14px, 2.6vw, 22px); padding: 2px 8px; }
 .fbstack.half .card.kickoff .rule .cyc .ar { font-size: clamp(16px, 3vw, 26px); }
-/* 결과 + 초코: 왼쪽 이름·바퀴, 오른쪽 큰 초코와 말풍선 */
+/* 초코 창문: 둥근 네모 안에 풍경·날씨, 초코는 흙길 위를 달린다. 말풍선은 창문 위 */
+.fb .choco .win { position: relative; width: min(100%, 330px); border-radius: 22px; overflow: hidden; border: 4px solid rgba(255,255,255,.85); background: #9AD3F2; box-shadow: 0 3px 0 rgba(0,0,0,.18); }
+.fb .choco .win::before { content: ''; display: block; padding-top: 62%; }
+.fb .choco .win canvas.scene { position: absolute; top: 0; left: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+.fb .choco .win img { position: absolute; left: 50%; bottom: 4%; width: 62%; transform: translateX(-50%); image-rendering: pixelated; }
+.fbstack.half .card .choco .win { width: min(100%, 190px); border-width: 3px; border-radius: 14px; }/* 결과 + 초코: 왼쪽 이름·바퀴, 오른쪽 큰 초코와 말풍선 */
 .fb.cho { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: 1fr auto auto 1fr; column-gap: 12px; }
 .fb.cho .big { grid-column: 1; grid-row: 2; }
 .fb.cho .laps { grid-column: 1; grid-row: 3; }
@@ -1022,7 +1027,7 @@ window.NB_LIBS = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '86';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '88';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -1307,7 +1312,8 @@ window.NB_LIBS = (function () {
     $('demoNote').hidden = true;
     $('runPanel').hidden = false;
     $('runPanel').classList.toggle('cb', S.camPos === 'bottom');
-    try { if (window.nbApplyOutfit) window.nbApplyOutfit(); } catch (e) {}   // 초코가 오늘 착장으로 응원   // 카메라가 아래: 위에 결과, 아래에 큰 카메라 창
+    try { if (window.nbApplyOutfit) window.nbApplyOutfit(); } catch (e) {}   // 초코가 오늘 착장으로 응원
+    try { if (window.nbLoadCheckWeather) window.nbLoadCheckWeather(); } catch (e) {}   // 결과 카드 풍경의 날씨   // 카메라가 아래: 위에 결과, 아래에 큰 카메라 창
     $('reader').classList.toggle('mirror', S.facing === 'user');
     idle();
     renderToday();
@@ -1441,6 +1447,83 @@ window.NB_LIBS = (function () {
     var s = Math.round(ms / 1000), mm = Math.floor(s / 60), ss = s % 60;
     return (mm ? mm + '분 ' : '') + ss + '초';
   }
+  /* ── 결과 카드 풍경 (도트): 하늘·날씨 → 먼 산 → 언덕·나무·집 → 풀밭 → 길(가운데 점선) → 지나가는 다음 거점 표지판.
+        캔버스는 카드 크기의 절반으로 그리고 키워서 도트 느낌. 먼 것은 느리게, 가까운 것은 빠르게 흘러 초코가 달리는 느낌 ── */
+  var SKY = { '': ['#5FB4E8', '#9AD3F2'], cloud: ['#8FA6B8', '#C3D0DA'], fog: ['#BFC9CD', '#DDE3E5'], rain: ['#66788A', '#93A3B1'], snow: ['#A9B8C6', '#D9E2EA'] };
+  function startScenes() {
+    if (S.sceneRaf) return;
+    var last = 0;
+    (function tick(now) {
+      var cards = document.querySelectorAll('#fbStack .card.scenic');
+      if (!cards.length) { S.sceneRaf = null; return; }
+      if (now - last > 50) {   // 1초에 20장
+        last = now;
+        Array.prototype.forEach.call(cards, function (c) { try { drawScene(c, now); } catch (e) {} });
+      }
+      S.sceneRaf = requestAnimationFrame(tick);
+    })(performance.now());
+  }
+  function drawScene(card, now) {
+    var cv = card.querySelector('canvas.scene'), st = card._scene; if (!cv || !st) return;
+    var box = cv.parentNode, W = Math.max(30, Math.round(box.clientWidth / 2)), H = Math.max(20, Math.round(box.clientHeight / 2));
+    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+    var x = cv.getContext('2d'), t = (now - st.born) / 1000, wx = S.sceneWx || '', u = 2;
+    var R = function (c, a, b, w, h) { x.fillStyle = c; x.fillRect(Math.round(a), Math.round(b), Math.round(w), Math.round(h)); };
+    var gy = Math.round(H * .70), ry = Math.round(H * .76);   // 풀밭, 길 시작
+    // 하늘 (4단 띠)
+    var sk = SKY[wx] || SKY[''];
+    for (var i = 0; i < 4; i++) R(mixCol(sk[0], sk[1], i / 3), 0, gy * i / 4, W, gy / 4 + 1);
+    // 해 (맑은 날)
+    if (!wx) { var sx = W * .14, sy = H * .2, sr = Math.max(4, H * .07); R('#FFE27A', sx - sr, sy - sr + u, sr * 2, sr * 2 - u * 2); R('#FFE27A', sx - sr + u, sy - sr, sr * 2 - u * 2, sr * 2); R('#FFF6C2', sx - sr / 2, sy - sr / 2, u * 2, u * 2); }
+    // 구름 (흐림·비·눈은 많이, 맑은 날은 조금) — 아주 천천히 흐름
+    var nc = wx ? 4 : 2;
+    for (i = 0; i < nc; i++) {
+      var cw = W * (.16 + (i % 2) * .06), cx = ((st.seed * 37 + i * W * .37 - t * 4 * (1 + i % 2)) % (W + cw) + W + cw) % (W + cw) - cw, cy = H * (.08 + (i % 3) * .1);
+      var cc = wx === 'rain' ? '#C7CED5' : '#FFFFFF';
+      R(cc, cx, cy + u * 2, cw, u * 3); R(cc, cx + cw * .2, cy, cw * .55, u * 2); R(mixCol(cc, '#7E8C99', .25), cx, cy + u * 5, cw, u);
+    }
+    // 먼 산 (계단 모양), 느리게
+    var mcol = wx ? '#7F98A8' : '#6E9DB8', per = Math.max(60, W * .45), off = (t * 8) % per;
+    for (var k = -1; k < W / per + 2; k++) {
+      var bx = k * per - off, mh = H * (.22 + ((k + 99) % 3) * .05);
+      for (var sy2 = 0; sy2 < mh; sy2 += u) { var half = (mh - sy2) * 1.2; R(mcol, bx + per / 2 - half, gy - sy2 - u, half * 2, u); }
+      R('#FFFFFF', bx + per / 2 - u, gy - mh, u * 2, u);   // 산꼭대기 눈
+    }
+    // 언덕·나무·집, 중간 빠르기
+    var per2 = Math.max(70, W * .38), off2 = (t * 26) % per2;
+    for (k = -1; k < W / per2 + 2; k++) {
+      var hx = k * per2 - off2;
+      R('#5DA454', hx, gy - H * .06, per2 * .7, H * .06);
+      // 나무
+      var tx0 = hx + per2 * .15; R('#2F7A3C', tx0, gy - H * .2, u * 5, H * .12); R('#3E9A4C', tx0 + u, gy - H * .22, u * 3, u * 3); R('#6B4A2B', tx0 + u * 2, gy - H * .08, u, H * .08);
+      // 집 (지붕 빨강)
+      if ((k + 99) % 2 === 0) { var hx2 = hx + per2 * .5; R('#F4EEDC', hx2, gy - H * .12, u * 9, H * .12); R('#C4432B', hx2 - u, gy - H * .16, u * 11, H * .045); R('#5B7FA6', hx2 + u * 3, gy - H * .08, u * 2, u * 2); }
+    }
+    // 풀밭 + 흙길 산책로 (자갈·풀이 빠르게 뒤로 흐름). 강아지는 차도 대신 산책로를 달린다
+    var snow = wx === 'snow';
+    R(snow ? '#EEF3F7' : '#6CBF5A', 0, gy, W, ry - gy);
+    R(snow ? '#D7E0E8' : '#58A84A', 0, ry - u, W, u);
+    R(snow ? '#E2D6C6' : '#C49A6C', 0, ry, W, H - ry);
+    R(snow ? '#F2ECE3' : '#D3AE84', 0, ry, W, u);
+    var step = Math.max(10, W * .09), off3 = (t * 70) % step;
+    for (var dx = -off3, n = 0; dx < W + step; dx += step, n++) {
+      var k2 = (n + Math.floor(t * 70 / step)) % 5;
+      R(snow ? '#C9BBA8' : '#A97C50', dx, ry + (H - ry) * (.3 + k2 * .1), u * 2, u);          // 자갈
+      R(snow ? '#BBAE9C' : '#8E6640', dx + step * .5, ry + (H - ry) * (.65 + (k2 % 2) * .15), u, u);
+      if (!snow) { R('#4C9A3E', dx + step * .3, ry - u * 3, u, u * 2); R('#4C9A3E', dx + step * .3 + u, ry - u * 2, u, u); }   // 길가 풀
+      if (!snow && k2 === 2) { R('#FF8FB1', dx + step * .7, ry - u * 2, u * 2, u * 2); R('#FFE27A', dx + step * .7 + u / 2, ry - u * 1.5, u, u); }   // 꽃
+    }    // 날씨 알갱이
+    if (wx === 'rain' || wx === 'snow') {
+      if (!st.parts.length) for (i = 0; i < (wx === 'rain' ? 50 : 40); i++) st.parts.push({ x: Math.random() * W, y: Math.random() * H, v: .6 + Math.random() * .6 });
+      st.parts.forEach(function (p) {
+        if (wx === 'rain') { p.y += 7 * p.v; p.x -= 2 * p.v; R('rgba(225,238,250,.85)', p.x, p.y, 1, u * 3); }
+        else { p.y += 1.4 * p.v; p.x += Math.sin(t * 2 + p.v * 9) * .6 - .8; R('#FFFFFF', p.x, p.y, u, u); }
+        if (p.y > H) { p.y = -4; p.x = Math.random() * W; } if (p.x < -4) p.x = W;
+      });
+    }
+    if (wx === 'fog') { x.fillStyle = 'rgba(255,255,255,.35)'; x.fillRect(0, 0, W, H); for (i = 0; i < 3; i++) { x.fillStyle = 'rgba(255,255,255,.45)'; x.fillRect(0, ((t * 6 + i * H * .33) % H), W, u * 2); } }
+  }
+
   /* 결과 카드: 찍힐 때마다 카드 한 장. 최대 4장, 각 3초 뒤 흐려지며 사라진다.
      1장 = 카메라 위 전체 / 2장 = 반 높이 2장(카메라 그대로) / 3장 = 반 높이 3장(카메라를 한 장만큼 줄임) / 4장 = 카메라를 숨기고 전체 화면.
      새 카드는 아래(카메라 쪽)에서 올라오며 앞 카드를 밀어 올린다 */
@@ -1455,8 +1538,10 @@ window.NB_LIBS = (function () {
     if (info.laps) h += '<div class="laps">' + esc(info.laps) + '</div>';
     if (info.rule) h += '<div class="rule">' + info.rule + '</div>';
     if (badge) h += '<div class="badge">' + esc(badge) + '</div>';
-    if (info.choco) h += '<div class="choco"><div class="bub">' + esc(info.choco) + '</div><img class="fbdog" alt="초코"></div>';
+    // 바퀴 카드: 초코는 둥근 창문 안 흙길 산책로를 달린다 (풍경·날씨는 창문 안에만, 말풍선은 창문 위)
+    if (info.choco) h += '<div class="choco"><div class="bub">' + esc(info.choco) + '</div><div class="win"><canvas class="scene" aria-hidden="true"></canvas><img class="fbdog" alt="초코"></div></div>';
     card.innerHTML = h;
+    if (info.choco) { card.classList.add('scenic'); card._scene = { born: performance.now(), seed: Math.random() * 1000, parts: [] }; startScenes(); }
     // 4장이 넘으면 가장 오래된 카드부터 뺀다 (카메라가 숨어 있을 땐 읽지 않아서 보통은 생기지 않음)
     var cards = st.querySelectorAll('.card:not(.out)');
     if (cards.length >= CARD_MAX) removeCard(cards[0], true);
@@ -3074,6 +3159,18 @@ window.NB_LIBS = (function () {
     w.then(renderWeather, function () { $('wx').hidden = true; trip.setWeather(''); wxNow = null; updateTalk(); });
   }
   var wxNow = null;   // 강아지 말풍선에서 쓰는 지금 날씨 {kind, temp}
+  /* 체크 화면 결과 카드 풍경에 쓰는 날씨: 체크 시작 때 받아 두고, 3시간 안에 받은 값은 인터넷이 없어도 다시 쓴다 */
+  window.nbLoadCheckWeather = function () {
+    var cached = load('nb_wx', null);
+    if (cached && Date.now() - cached.at < 3 * 3600 * 1000) { S.sceneWx = cached.kind === 'storm' ? 'rain' : cached.kind; if (!wxNow) { wxNow = { kind: cached.kind, temp: cached.temp }; applyOutfit(); } }
+    var q = 'latitude=' + WX_LAT + '&longitude=' + WX_LON + '&timezone=Asia%2FSeoul';
+    getJSON('https://api.open-meteo.com/v1/forecast?' + q + '&forecast_days=1&current=temperature_2m,weather_code').then(function (w) {
+      var cur = w.current || {}, info = wxInfo(cur.weather_code), t = Math.round(cur.temperature_2m);
+      save('nb_wx', { kind: info[3], temp: t, at: Date.now() });
+      S.sceneWx = info[3] === 'storm' ? 'rain' : info[3];
+      wxNow = { kind: info[3], temp: t }; applyOutfit();
+    }, function () { if (S.sceneWx == null) S.sceneWx = ''; });
+  };
   function renderWeather(w) {
     var cur = w.current || {}, day = w.daily || {};
     var info = wxInfo(cur.weather_code);
@@ -4016,7 +4113,9 @@ window.NB_LIBS = (function () {
 
   /* 시연: 주소 끝을 #checkdemo로 열면 카메라 없이 학생 4명이 차례로 찍는 모습을 되풀이해 보여 준다.
      화면만 보여 주고 기록은 하나도 저장하지 않는다 (실제 시트에 연결돼 있어도 안전) */
+  window.nbSceneWx = function (k) { S.sceneWx = k || ''; };   // 시험: nbSceneWx('rain') → 결과 카드 풍경 날씨
   function runCheckDemo() {
+    if (S.sceneWx == null) S.sceneWx = '';
     ['startPanel', 'topbar', 'demoNote'].forEach(function (i) { if ($(i)) $(i).hidden = true; });
     var rp = $('runPanel'); rp.hidden = false; rp.classList.add('cb');
     $('placeInfo').textContent = '운동장 · 한 바퀴마다'; $('placeInfo').className = 'pill place';
