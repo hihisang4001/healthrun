@@ -118,12 +118,13 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--turf); outline-
 .sw-rec small { display: block; font-weight: 500; font-size: 13px; }
 .st-row { display: flex; align-items: center; gap: 14px; }
 .st-pic img.emo { width: 52px; height: 52px; display: block; }
-.st-pic.art { width: 112px; height: 70px; flex: none; border-radius: 10px; overflow: hidden; border: 2px solid var(--rule); }
+.st-pic.art { order: 2; margin-left: auto; width: 50%; height: auto; aspect-ratio: 128 / 80; flex: none; border-radius: 12px; overflow: hidden; border: 2px solid var(--rule); }
+.st-row > div:not(.st-pic) { flex: 1; min-width: 0; padding-right: 16px; }   /* 막대 끝의 초코가 그림에 닿지 않게 */
 .st-lbl { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
 .st-name { font-family: var(--display); font-size: 32px; line-height: 1.1; }
 .st-left { font-size: 16px; font-weight: 700; }
 .st-left b { color: var(--track); font-size: 1.2em; margin: 0 3px; }
-.st-bar { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; color: var(--ink-soft); padding-top: 34px; }
+.st-bar { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; color: var(--ink-soft); padding-top: 46px; }
 .st-bar .bar { position: relative; height: 14px; background: var(--turf-soft); border-radius: 999px; }
 .st-bar .bar i { position: absolute; top: 0; bottom: 0; left: 0; background: var(--turf); border-radius: 999px; }
 .st-bar .runner { position: absolute; top: 50%; transform: translate(-39%, -92%); line-height: 1; }
@@ -287,8 +288,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--turf); outline-
 }
 /* 거점 도트 풍경화 (128×80) */
 img.stopimg { display: block; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
-.goal-pic.art { width: 2.4em; height: 1.5em; padding: 0; overflow: hidden; border: 3px solid rgba(255,255,255,.85); background: none; border-radius: 16px; }
-.goal-txt { min-width: 0; }
+/* 거점 풍경화가 있으면: 글자는 왼쪽, 그림은 오른쪽 절반을 크게 */
+.goal-pic.art { order: 2; margin-left: auto; width: 50%; height: auto; aspect-ratio: 128 / 80; font-size: inherit; padding: 0; overflow: hidden; border: 3px solid rgba(255,255,255,.85); background: none; border-radius: 16px; box-shadow: 0 4px 0 rgba(0,0,0,.15); }
+.goal-txt { min-width: 0; flex: 1; padding-right: clamp(20px, 3vw, 48px); }   /* 막대 끝의 초코가 오른쪽 그림에 닿지 않게 */
 .goal-lbl { font-weight: 700; opacity: .85; font-size: clamp(15px, 1.3vw, 22px); }
 .goal-name { font-family: var(--display); font-size: clamp(40px, 4.4vw, 82px); line-height: 1.05; word-break: keep-all; }
 .goal-left { font-size: clamp(20px, 1.9vw, 34px); font-weight: 900; }
@@ -296,6 +298,7 @@ img.stopimg { display: block; width: 100%; height: 100%; object-fit: cover; imag
 .goal-bar {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px;
   font-weight: 700; font-size: clamp(14px, 1.2vw, 20px);
+  padding-top: calc(clamp(28px, 2.6vw, 46px) * 2.6);   /* 초코가 뛸 자리: 위 그림·글자와 겹치지 않게 */
 }
 .goal-bar .bar { position: relative; height: clamp(16px, 1.5vw, 26px); background: rgba(255,255,255,.25); border-radius: 999px; }
 .goal-bar .bar i { position: absolute; top: 0; bottom: 0; left: 0; background: #FFE27A; border-radius: 999px; }
@@ -511,7 +514,9 @@ body.tv.tv-scroll .gameboard { flex: none; }
   body.tv .goal-lbl { font-size: 2.2vw; }
   body.tv .goal-name { font-size: 5.6vw; }
   body.tv .goal-left { font-size: 3.1vw; }
-  body.tv .goal-bar { font-size: 2.2vw; gap: 1.4vw; }
+  body.tv .goal-bar { font-size: 2.2vw; gap: 1.4vw; padding-top: calc(3.4vw * 2.6); }
+  body.tv .goal-pic.art { font-size: inherit; border-width: .5vw; border-radius: 2vw; }
+  body.tv .goal-txt { padding-right: 4vw; }   /* 막대 끝의 초코가 오른쪽 그림에 닿지 않게 */
   body.tv .goal-bar .bar { height: 2.2vw; }
   body.tv .goal-bar .runner { font-size: 3.4vw; }
   body.tv .goal-today { font-size: 2.3vw; }
@@ -828,12 +833,13 @@ tr:last-child td { border-bottom: 0; }
             <div class="st-lbl" id="stLbl">다음 목표</div>
             <div class="st-name" id="stName">–</div>
             <div class="st-left" id="stLeft"></div>
+            <!-- 막대와 초코는 왼쪽 열 안에서만 (오른쪽 그림과 겹치지 않게) -->
+            <div class="st-bar">
+              <span id="stFrom"></span>
+              <div class="bar"><i id="stFill" style="width:0"></i><span class="runner" id="stRunner" style="left:0" aria-hidden="true"><img class="stdog" id="stDog" alt=""></span></div>
+              <span id="stTo"></span>
+            </div>
           </div>
-        </div>
-        <div class="st-bar">
-          <span id="stFrom"></span>
-          <div class="bar"><i id="stFill" style="width:0"></i><span class="runner" id="stRunner" style="left:0" aria-hidden="true"><img class="stdog" id="stDog" alt=""></span></div>
-          <span id="stTo"></span>
         </div>
       </div>
     </div>
@@ -876,12 +882,13 @@ tr:last-child td { border-bottom: 0; }
             <div class="goal-lbl" id="gLbl">다음 목표</div>
             <div class="goal-name" id="gName">출발 준비 중</div>
             <div class="goal-left" id="gLeft"></div>
+            <!-- 막대와 초코는 왼쪽 열 안에서만 (오른쪽 그림과 겹치지 않게) -->
+            <div class="goal-bar">
+              <span id="gFrom"></span>
+              <div class="bar"><i id="gFill" style="width:0"></i><span class="runner" id="gRunner" style="left:0" aria-hidden="true"><img class="dogimg" id="gDog" alt=""></span></div>
+              <span id="gTo"></span>
+            </div>
           </div>
-        </div>
-        <div class="goal-bar">
-          <span id="gFrom"></span>
-          <div class="bar"><i id="gFill" style="width:0"></i><span class="runner" id="gRunner" style="left:0" aria-hidden="true"><img class="dogimg" id="gDog" alt=""></span></div>
-          <span id="gTo"></span>
         </div>
         <div class="goal-today" id="gToday"></div>
       </div>
@@ -1822,7 +1829,7 @@ window.NBPix = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '97';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '98';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
