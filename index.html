@@ -118,6 +118,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--turf); outline-
 .sw-rec small { display: block; font-weight: 500; font-size: 13px; }
 .st-row { display: flex; align-items: center; gap: 14px; }
 .st-pic img.emo { width: 52px; height: 52px; display: block; }
+.st-pic.art { width: 112px; height: 70px; flex: none; border-radius: 10px; overflow: hidden; border: 2px solid var(--rule); }
 .st-lbl { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
 .st-name { font-family: var(--display); font-size: 32px; line-height: 1.1; }
 .st-left { font-size: 16px; font-weight: 700; }
@@ -284,6 +285,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--turf); outline-
   flex: none; font-size: clamp(52px, 5.4vw, 100px); line-height: 1; width: 1.35em; height: 1.35em;
   display: grid; place-items: center; background: rgba(255,255,255,.15); border-radius: 22px;
 }
+/* 거점 도트 풍경화 (128×80) */
+img.stopimg { display: block; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+.goal-pic.art { width: 2.4em; height: 1.5em; padding: 0; overflow: hidden; border: 3px solid rgba(255,255,255,.85); background: none; border-radius: 16px; }
 .goal-txt { min-width: 0; }
 .goal-lbl { font-weight: 700; opacity: .85; font-size: clamp(15px, 1.3vw, 22px); }
 .goal-name { font-family: var(--display); font-size: clamp(40px, 4.4vw, 82px); line-height: 1.05; word-break: keep-all; }
@@ -556,6 +560,7 @@ body.tv .gb-head .map-zoom { font-size: clamp(14px, 1.9vmin, 30px); }
 }
 .cel-pic { font-size: 16vmin; line-height: 1; margin: 2vmin 0 1vmin; animation: celBob 1s ease-in-out infinite; }
 .cel-pic img.emo { display: inline-block; }
+.cel-pic.art { width: min(64vmin, 560px); aspect-ratio: 128 / 80; margin: 2vmin auto 1vmin; border: .8vmin solid #1E1914; animation: none; box-shadow: 0 1vmin 0 rgba(0,0,0,.2); }
 @keyframes celBob { 50% { transform: translateY(-1.6vmin) rotate(4deg); } }
 .cel-name { font-family: var(--display); font-size: 10vmin; line-height: 1.1; word-break: keep-all; }
 .cel-name b { color: #C4432B; font-weight: 400; }
@@ -1097,6 +1102,716 @@ window.NB_LIBS = (function () {
 })();
 </script>
 <script>
+/* ════════ 도트 그림 (거점 풍경화 · 지도 · 결과 카드 풍경) ════════
+   그림 파일 없이 코드로 점을 하나하나 찍어 그린다. 빛은 왼쪽 위, 색감은 맑은 아침. */
+window.NBPix = (function () {
+  'use strict';
+  var BAY = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+  function bay(x, y) { return (BAY[y & 3][x & 3] + .5) / 16; }
+  function hash(x, y, s) {
+    var h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul((s || 0) | 0, 1442695041)) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  }
+  // per: 이 간격마다 무늬가 되풀이 (흐르는 띠를 이어 붙일 때 이음매가 안 보이게)
+  function vn(x, s, per) {
+    var i = Math.floor(x), f = x - i, u = f * f * (3 - 2 * f), a = i, b = i + 1;
+    if (per) { a = ((a % per) + per) % per; b = ((b % per) + per) % per; }
+    return hash(a, 0, s) * (1 - u) + hash(b, 0, s) * u;
+  }
+  function fbm(x, s, per) { return vn(x, s, per) * .6 + vn(x * 2, s + 7, per && per * 2) * .28 + vn(x * 4, s + 13, per && per * 4) * .12; }
+  function vn2(x, y, s, per) {
+    var i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j, ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy), i2 = i + 1;
+    if (per) { i = ((i % per) + per) % per; i2 = ((i2 % per) + per) % per; }
+    var a = hash(i, j, s), b = hash(i2, j, s), c = hash(i, j + 1, s), d = hash(i2, j + 1, s);
+    return (a * (1 - ux) + b * ux) * (1 - uy) + (c * (1 - ux) + d * ux) * uy;
+  }
+  function fbm2(x, y, s, per) { return vn2(x, y, s, per) * .55 + vn2(x * 2, y * 2, s + 5, per && per * 2) * .3 + vn2(x * 4, y * 4, s + 9, per && per * 4) * .15; }
+  var HEX = {};
+  function rgb(c) { var v = HEX[c]; if (!v) { var n = parseInt(c.slice(1), 16); v = HEX[c] = [n >> 16, (n >> 8) & 255, n & 255]; } return v; }
+
+  function Pix(w, h) {
+    this.w = w; this.h = h;
+    this.c = document.createElement('canvas'); this.c.width = w; this.c.height = h;
+    this.g = this.c.getContext('2d'); this.img = this.g.createImageData(w, h); this.d = this.img.data;
+  }
+  var P = Pix.prototype;
+  P.set = function (x, y, col) {
+    x = Math.round(x); y = Math.round(y);
+    if (x < 0 || y < 0 || x >= this.w || y >= this.h) return;
+    var i = (y * this.w + x) * 4, c = rgb(col);
+    this.d[i] = c[0]; this.d[i + 1] = c[1]; this.d[i + 2] = c[2]; this.d[i + 3] = 255;
+  };
+  P.has = function (x, y) { x = Math.round(x); y = Math.round(y); return x >= 0 && y >= 0 && x < this.w && y < this.h && this.d[(y * this.w + x) * 4 + 3] > 0; };
+  P.rect = function (x, y, w, h, col) { for (var j = 0; j < h; j++) for (var i = 0; i < w; i++) this.set(x + i, y + j, col); };
+  P.done = function () { this.g.putImageData(this.img, 0, 0); return this.c; };
+  P.grad = function (y0, y1, cols) {
+    for (var y = y0; y <= y1; y++) {
+      var t = (y - y0) / Math.max(1, y1 - y0) * (cols.length - 1), i = Math.floor(t), f = t - i;
+      for (var x = 0; x < this.w; x++) this.set(x, y, f > bay(x, y) && i + 1 < cols.length ? cols[i + 1] : cols[i]);
+    }
+  };
+  P.disc = function (cx, cy, r, col) { for (var y = -r; y <= r; y++) for (var x = -r; x <= r; x++) if (x * x + y * y <= r * r + r * .6) this.set(cx + x, cy + y, col); };
+  P.line = function (x0, y0, x1, y1, col) {
+    var n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1);
+    for (var i = 0; i <= n; i++) this.set(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n, col);
+  };
+  // 다각형 칠하기 (점 단위, 흐림 없이)
+  P.poly = function (pts, col) {
+    var y0 = Infinity, y1 = -Infinity;
+    pts.forEach(function (p) { y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
+    for (var y = Math.floor(y0); y <= Math.ceil(y1); y++) {
+      var xs = [], yy = y + .5;
+      for (var i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+        var a = pts[i], b = pts[j];
+        if ((a[1] > yy) !== (b[1] > yy)) xs.push(a[0] + (yy - a[1]) * (b[0] - a[0]) / (b[1] - a[1]));
+      }
+      xs.sort(function (m, n) { return m - n; });
+      for (var k = 0; k + 1 < xs.length; k += 2) for (var x = Math.round(xs[k]); x < Math.round(xs[k + 1]); x++) this.set(x, y, typeof col === 'function' ? col(x, y) : col);
+    }
+  };
+  P.sun = function (cx, cy, r, warm) {
+    for (var y = -r - 3; y <= r + 3; y++) for (var x = -r - 3; x <= r + 3; x++) {
+      var d = Math.sqrt(x * x + y * y);
+      if (d <= r * .55) this.set(cx + x, cy + y, warm ? '#FFF1C2' : '#FFF8D6');
+      else if (d <= r) this.set(cx + x, cy + y, warm ? '#FFB54D' : '#FFE58A');
+      else if (d <= r + 2.5 && bay(cx + x, cy + y) < .35) this.set(cx + x, cy + y, warm ? '#FFD38A' : '#FFF2BE');
+    }
+  };
+  P.cloud = function (cx, cy, w, seed, shade) {
+    var blobs = [], n = Math.max(3, Math.round(w / 6));
+    for (var k = 0; k < n; k++) {
+      var bx = cx - w / 2 + (k + .5) * w / n, mid = 1 - Math.abs((k + .5) / n - .5) * 2;
+      blobs.push([bx, cy - mid * w * .12 - hash(k, 1, seed) * 2, 3 + mid * w * .14 + hash(k, 2, seed) * 2]);
+    }
+    var inside = function (x, y) { for (var b = 0; b < blobs.length; b++) { var dx = x - blobs[b][0], dy = (y - blobs[b][1]) * 1.15; if (dx * dx + dy * dy <= blobs[b][2] * blobs[b][2]) return true; } return false; };
+    var bottom = cy + 3, c0 = shade ? shade[0] : '#FFFFFF', c1 = shade ? shade[1] : '#E3EEF6', c2 = shade ? shade[2] : '#C9DDEC';
+    for (var y = Math.floor(cy - w * .4); y <= bottom; y++) for (var x = Math.floor(cx - w / 2 - 6); x <= cx + w / 2 + 6; x++) {
+      if (!inside(x, y)) continue;
+      var col = y >= bottom - 1 ? c2 : (y >= bottom - 3 || !inside(x + 1, y + 1)) ? c1 : c0;
+      this.set(x, y, col);
+    }
+  };
+  // 산등성이. o = {base, amp, scale, seed, lit, mid, dark, jag, snow, snowShade, snowY, off, per, bottom, top}
+  P.ridge = function (o) {
+    var H = [], off = o.off || 0, per = o.per || 0;
+    for (var x = -3; x <= this.w + 4; x++) {
+      var xx = x + off;
+      H.push(o.base - o.amp * fbm(xx / o.scale, o.seed, per && per / o.scale) - (o.jag ? o.jag * hash(per ? (((Math.floor(xx / 2)) % (per / 2)) + per / 2) % (per / 2) : Math.floor(xx / 2), 3, o.seed) : 0));
+    }
+    var HH = function (i) { i = Math.max(0, Math.min(H.length - 1, i)); return H[i]; };
+    var bottom = o.bottom == null ? this.h - 1 : o.bottom;
+    for (x = 0; x < this.w; x++) {
+      var h = H[x + 3], slope = HH(x + 6) - HH(x);
+      for (var y = Math.ceil(h); y <= bottom; y++) {
+        var depth = y - h, lit = slope < -.8, shade = slope > .8, col = lit ? o.lit : shade ? o.dark : o.mid;
+        var tx = fbm2((x + off) / 3, y / 4, o.seed + 2, per && per / 3);
+        if (lit && tx < .38) col = o.mid; else if (shade && tx > .66) col = o.mid; else if (!lit && !shade && tx > .7) col = o.lit; else if (!lit && !shade && tx < .3) col = o.dark;
+        if (Math.abs(slope) <= .8 && Math.abs(slope) > .4 && bay(x, y) < .5) col = slope < 0 ? o.lit : o.dark;
+        if (o.snow && y < o.snowY + hash(per ? ((x + off) % per + per) % per : x + off, 0, o.seed + 4) * 3 && depth < 7) col = shade ? o.snowShade : o.snow;
+        this.set(x, y, col);
+      }
+    }
+    return function (x) { return HH(Math.round(x) + 3); };
+  };
+  P.conifer = function (x, base, h, pal) {
+    var w = Math.max(2, Math.round(h * .32));
+    for (var y = 0; y < h; y++) {
+      var t = y / h, tier = (y % 4) / 4, half = Math.round((t * .85 + tier * .25) * w);
+      for (var dx = -half; dx <= half; dx++) {
+        var col = dx < -half * .3 ? pal[0] : dx > half * .35 ? pal[2] : pal[1];
+        if (y % 4 === 3 && Math.abs(dx) === half) col = pal[2];
+        this.set(x + dx, base - h + y, col);
+      }
+    }
+    this.rect(x, base, 1, Math.max(1, Math.round(h * .15)), pal[3]);
+  };
+  P.broadleaf = function (cx, cy, r, pal, seed, noTrunk) {
+    if (!noTrunk) { this.rect(cx - 1, cy + Math.round(r * .5), 2, Math.round(r * 1.1), pal[4]); }
+    var blobs = [[0, 0, r]];
+    for (var k = 0; k < 4; k++) blobs.push([(hash(k, 1, seed) - .5) * r * 1.3, (hash(k, 2, seed) - .3) * r * .9, r * (.5 + hash(k, 3, seed) * .3)]);
+    for (var y = -r * 1.6; y <= r * 1.4; y++) for (var x = -r * 1.6; x <= r * 1.6; x++) {
+      var inn = false, best = 9;
+      for (var b = 0; b < blobs.length; b++) {
+        var dx = x - blobs[b][0], dy = y - blobs[b][1], d = Math.sqrt(dx * dx + dy * dy) / blobs[b][2];
+        if (d <= 1) { inn = true; var l = (dx + dy) / blobs[b][2]; if (l < best) best = l; }
+      }
+      if (!inn) continue;
+      var n = hash(cx + Math.round(x), cy + Math.round(y), seed + 9);
+      var col = best < -.75 ? pal[0] : best < -.2 ? pal[1] : best < .45 ? pal[2] : pal[3];
+      if (n < .12) col = pal[3]; else if (n > .93 && best < .2) col = pal[0];
+      if (pal[5] && n > .8 && n < .86) col = pal[5];   // 열매·꽃
+      this.set(cx + x, cy + y, col);
+    }
+  };
+  P.grass = function (y0, y1, pal, seed, off, per) {
+    off = off || 0;
+    for (var y = y0; y <= y1; y++) for (var x = 0; x < this.w; x++) {
+      var xx = x + off, n = fbm2(xx / 7, y / 4, seed, per && per / 7), col = n > .58 ? pal[0] : n > .42 ? pal[1] : pal[2];
+      if (hash(per ? ((xx % per) + per) % per : xx, y, seed + 3) < .06) col = pal[3];
+      this.set(x, y, col);
+    }
+  };
+  // 물: 위가 밝고 아래가 진한 띠 + 반짝임
+  P.water = function (y0, y1, cols, seed) {
+    this.grad(y0, y1, cols);
+    for (var y = y0 + 1; y <= y1; y++) for (var x = 0; x < this.w; x++) {
+      var k = hash(Math.floor(x / 3), y, seed || 41);
+      if (k < .06) this.set(x, y, '#CDEEFA'); else if (k > .96) this.set(x, y, cols[cols.length - 1] === '#2F7CAF' ? '#25699A' : '#3A86B8');
+    }
+  };
+  // 기와지붕 (처마 끝이 살짝 들린 한옥 지붕). 아래 가장자리 기준 (cx, by), 폭 w, 높이 h
+  P.hanokRoof = function (cx, by, w, h, pal) {
+    pal = pal || ['#6E7782', '#545C67', '#3D434C', '#2C3138'];
+    for (var r = 0; r < h; r++) {
+      var t = r / Math.max(1, h - 1), half = Math.round(w / 2 * (.62 + .38 * t)), y = by - h + r;
+      for (var dx = -half; dx <= half; dx++) {
+        var col = (Math.abs(dx) % 3 === 0) ? pal[2] : (dx < 0 ? pal[0] : pal[1]);
+        if (r === 0) col = pal[3];
+        this.set(cx + dx, y, col);
+      }
+    }
+    // 처마 끝: 양쪽이 위로 휘어 올라감
+    for (var e = 1; e <= 2; e++) { this.set(cx - Math.round(w / 2) - e, by - 1 - e, pal[3]); this.set(cx + Math.round(w / 2) + e, by - 1 - e, pal[3]); }
+    this.rect(cx - Math.round(w / 2), by, w + 1, 1, pal[3]);
+    this.set(cx - Math.round(w * .31) - 1, by - h - 1, pal[3]); this.set(cx + Math.round(w * .31) + 1, by - h - 1, pal[3]);
+  };
+  // 누각(정자): 기둥 위 마루, 다시 기둥, 기와지붕. 단청(초록·빨강) 띠
+  P.pavilion = function (cx, baseY, w, stilt, upper, roofH) {
+    var x0 = cx - Math.round(w / 2);
+    for (var k = 0; k <= 4; k++) { var px = x0 + Math.round(k * (w - 2) / 4); this.rect(px, baseY - stilt, 2, stilt, k % 2 ? '#7E3B2A' : '#A44A32'); }
+    this.rect(x0 - 2, baseY - stilt - 2, w + 4, 2, '#8C5A3A'); this.rect(x0 - 2, baseY - stilt - 2, w + 4, 1, '#B98457');
+    var top = baseY - stilt - 2 - upper;
+    for (k = 0; k <= 4; k++) { px = x0 + Math.round(k * (w - 2) / 4); this.rect(px, top, 2, upper, '#B5513A'); }
+    this.rect(x0 - 1, top, w + 2, 2, '#2F8F6E'); this.rect(x0 - 1, top + 2, w + 2, 1, '#C4432B');
+    this.hanokRoof(cx, top, w + 10, roofH);
+  };
+  // 돌성벽: (x0..x1) 위쪽 선 topFn(x), 높이 h. 여장(톱니) 포함
+  P.stoneWall = function (x0, x1, topFn, h, pal) {
+    pal = pal || ['#E2DCCD', '#C9C1AF', '#A59D8B', '#857E6E'];
+    for (var x = x0; x <= x1; x++) {
+      var t = Math.round(topFn(x));
+      if (x % 4 !== 3) { this.set(x, t - 2, pal[1]); this.set(x, t - 1, pal[0]); }
+      for (var y = t; y < t + h; y++) {
+        var row = Math.floor((y - t) / 2), brick = (x + (row % 2) * 2) % 4 === 0 || (y - t) % 2 === 1 && hash(x, y, 2) < .2;
+        var col = brick ? pal[3] : (x - x0) < (x1 - x0) * .2 || hash(x, row, 7) > .7 ? pal[0] : pal[1];
+        if (y === t + h - 1) col = pal[2];
+        this.set(x, y, col);
+      }
+    }
+  };
+  P.house = function (x, by, w, h, roof) {
+    this.rect(x, by - h, w, h, '#F5EEDD'); this.rect(x + w - 3, by - h, 3, h, '#DCCFB6');
+    for (var r = 0; r < 4; r++) this.rect(x - 2 + r, by - h - 4 + r, w + 4 - r * 2, 1, r < 2 ? (roof || '#D9573E') : '#C4432B');
+    this.rect(x - 2, by - h - 1, w + 4, 1, '#9C3322');
+    this.rect(x + 2, by - h + 2, 3, 3, '#7FB6DA'); this.set(x + 2, by - h + 2, '#CDE8F6'); this.rect(x + w - 6, by - 6, 2, 6, '#8E6A42');
+  };
+  P.gull = function (x, y) { this.set(x - 1, y - 1, '#FFFFFF'); this.set(x, y, '#FFFFFF'); this.set(x + 1, y - 1, '#FFFFFF'); this.set(x - 2, y - 1, '#DDE8EF'); this.set(x + 2, y - 1, '#DDE8EF'); };
+  P.boat = function (x, y, w, col) {
+    for (var r = 0; r < 3; r++) this.rect(x + r, y + r, w - r * 2, 1, r === 0 ? '#FFFFFF' : '#D9E2EA');
+    this.rect(x + 3, y - 3, w - 8, 3, col || '#2F6FB4'); this.rect(x + 4, y - 3, 2, 2, '#BFE3F6');
+    this.rect(x + 1, y + 3, w - 2, 1, '#2F7CAF');
+  };
+
+  /* ── 공통 팔레트 ── */
+  var SKY = ['#73BEEA', '#8CCBEF', '#A6D8F2', '#C3E4F3', '#E0EEF0', '#F7F0DA'];
+  var FAR = { lit: '#B4C6DF', mid: '#A1B5D3', dark: '#8EA2C4' };
+  var HILL = { lit: '#8DC062', mid: '#73AA55', dark: '#5A9049' };
+  var LEAF = ['#C5E58A', '#92C862', '#6FAA4C', '#4E863E', '#6B4A2B'];
+  var PINE = ['#5E9C55', '#467F45', '#335F37', '#5A3E26'];
+  var GRASS = ['#9FD072', '#8CC45F', '#78B452', '#B9DE87'];
+  var SEA = ['#7CC9E9', '#5DB5DE', '#469FD0', '#3A8CC0'];
+  function sky(p, horizon, sunX, seed) {
+    p.grad(0, horizon, SKY);
+    if (sunX != null) p.sun(sunX, 12, 5);
+    p.cloud(sunX < 64 ? 84 : 36, 11, 26, seed || 3); p.cloud(sunX < 64 ? 116 : 8, 22, 16, (seed || 3) + 5);
+  }
+  function farRidge(p, base, amp, seed, bottom, jag) { return p.ridge({ base: base, amp: amp, scale: 14, seed: seed, jag: jag || 0, lit: FAR.lit, mid: FAR.mid, dark: FAR.dark, bottom: bottom }); }
+  function hill(p, base, amp, seed, bottom) { return p.ridge({ base: base, amp: amp, scale: 18, seed: seed, lit: HILL.lit, mid: HILL.mid, dark: HILL.dark, bottom: bottom }); }
+
+  /* ── 거점 풍경화 22곳 (128×80) ── */
+  var STOPS = {};
+  STOPS['내북초'] = function (p) {
+    sky(p, 52, 17, 3);
+    p.ridge({ base: 42, amp: 20, scale: 11, seed: 4, jag: 4, lit: '#C1CCDD', mid: '#A8B5CB', dark: '#8F9DB7', bottom: 52 });
+    hill(p, 50, 7, 9, 58);
+    for (var t = 0; t < 128; t += 5) if (hash(t, 0, 2) < .55) p.conifer(t + 2, 50 + Math.round(hash(t, 1, 2) * 3), 4 + Math.round(hash(t, 3, 2) * 3), ['#5E9C55', '#467F45', '#335F37', '#4A3422']);
+    var bx = 28, by = 30, bw = 72, bh = 27;
+    p.rect(bx - 1, by - 2, bw + 2, 2, '#8C8378'); p.rect(bx - 1, by - 3, bw + 2, 1, '#B3AA9D');
+    for (var y = by; y < by + bh; y++) for (var x = bx; x < bx + bw; x++) p.set(x, y, x > bx + bw - 6 ? '#DACDB4' : y === by + 12 ? '#E2D6C0' : hash(x, y, 5) < .04 ? '#E6DCC9' : '#F3EBDB');
+    p.rect(bx, by + bh - 1, bw, 1, '#C9BCA4');
+    function win(wx, wy) { p.rect(wx - 1, wy - 1, 7, 7, '#61707F'); p.rect(wx, wy, 5, 5, '#8EC6E6'); p.rect(wx, wy, 2, 1, '#D6EEF9'); p.set(wx, wy + 1, '#D6EEF9'); p.rect(wx, wy + 4, 5, 1, '#6BA7CF'); p.rect(wx + 2, wy, 1, 5, '#61707F'); }
+    for (var c = 0; c < 9; c++) { var wx = bx + 3 + c * 8; if (wx > 56 && wx < 72) continue; win(wx, by + 3); win(wx, by + 16); }
+    p.rect(57, 17, 15, 40, '#F7F0E2'); p.rect(68, 17, 4, 40, '#DCCFB6'); p.rect(56, 15, 17, 2, '#8C8378'); p.rect(56, 14, 17, 1, '#B3AA9D');
+    p.disc(64, 23, 4, '#3F4A55'); p.disc(64, 23, 3, '#FFFFFF'); p.rect(64, 20, 1, 3, '#3F4A55'); p.rect(64, 23, 2, 1, '#C4432B');
+    win(62, 31);
+    p.rect(60, 46, 9, 11, '#7A5A3D'); p.rect(61, 47, 3, 10, '#8E6C4A'); p.rect(65, 47, 3, 10, '#8E6C4A'); p.rect(58, 44, 13, 2, '#C4432B'); p.rect(58, 44, 13, 1, '#DA6A4F');
+    p.rect(107, 24, 1, 33, '#9AA1A9'); p.rect(108, 25, 8, 5, '#FFFFFF'); p.set(111, 26, '#D23A3A'); p.set(111, 27, '#D23A3A'); p.set(112, 27, '#2F5CB4'); p.set(112, 28, '#2F5CB4');
+    p.grass(57, 79, GRASS, 21);
+    var cx = 64, cy = 69;
+    for (y = 58; y < 80; y++) for (x = 0; x < 128; x++) {
+      var ex = (x - cx) / 62, ey = (y - cy) / 9.5, r2 = ex * ex + ey * ey, ix = (x - cx) / 49, iy = (y - cy) / 5.2, i2 = ix * ix + iy * iy;
+      if (r2 <= 1 && i2 > 1) { var lane = Math.sqrt(r2), cc = y < cy ? '#D86A4C' : '#C95A3E'; if ((Math.abs(lane - .9) < .02 || Math.abs(lane - .975) < .018) && (x + y) % 3) cc = '#F7EEE6'; p.set(x, y, cc); }
+      else if (i2 <= 1) p.set(x, y, Math.floor((x + 200) / 6) % 2 ? '#86C55E' : '#79BA53');
+    }
+    p.broadleaf(9, 50, 8, LEAF, 11); p.broadleaf(119, 52, 7, LEAF, 17); p.conifer(22, 58, 9, PINE);
+  };
+  STOPS['청주'] = function (p) {   // 상당산성
+    sky(p, 50, 18, 6);
+    farRidge(p, 38, 14, 21, 50);
+    var top = hill(p, 50, 16, 23, 79);
+    p.stoneWall(0, 127, function (x) { return top(x) - 1; }, 6);
+    // 성문 + 문루
+    var gx = 70, gt = Math.round(top(gx)) - 1;
+    p.rect(gx - 8, gt - 1, 17, 9, '#D9D2C2'); p.rect(gx - 8, gt - 1, 17, 1, '#F0EBDF');
+    for (var y = 0; y < 6; y++) for (var dx = -3; dx <= 3; dx++) if (dx * dx + Math.max(0, 3 - y) * Math.max(0, 3 - y) * 1.2 <= 10) p.set(gx + dx, gt + 2 + y, '#3B342C');
+    p.pavilion(gx, gt - 1, 18, 0, 6, 6);
+    p.grass(66, 79, GRASS, 24);
+    p.broadleaf(14, 60, 9, LEAF, 31); p.broadleaf(112, 63, 8, LEAF, 33); p.conifer(30, 72, 12, PINE); p.conifer(98, 74, 10, PINE);
+  };
+  STOPS['공주'] = function (p) {   // 공산성 금서루 + 금강
+    sky(p, 46, 108, 8);
+    farRidge(p, 36, 10, 41, 46);
+    hill(p, 44, 9, 43, 64);
+    p.stoneWall(0, 127, function (x) { return 50 - x * .04; }, 9);
+    var flags = ['#F2C230', '#D9412E', '#2D6CC8', '#2F8F4E', '#FFFFFF'];
+    for (var x = 4; x < 128; x += 9) { var ty = Math.round(50 - x * .04) - 3; p.rect(x, ty - 9, 1, 9, '#7A5A3D'); p.rect(x + 1, ty - 9, 4, 3, flags[(x / 9 | 0) % flags.length]); p.set(x + 4, ty - 7, flags[(x / 9 | 0) % flags.length]); }
+    p.rect(50, 44, 20, 12, '#D9D2C2'); for (var y = 0; y < 7; y++) for (var dx = -3; dx <= 3; dx++) if (dx * dx + Math.max(0, 3 - y) * Math.max(0, 3 - y) <= 10) p.set(60 + dx, 49 + y, '#3B342C');
+    p.pavilion(60, 44, 22, 0, 7, 7);
+    p.water(60, 79, SEA, 43);
+    for (y = 61; y < 66; y++) for (x = 0; x < 128; x++) if (bay(x, y) < .25) p.set(x, y, '#C9C1AF');   // 성벽 그림자 물빛
+  };
+  STOPS['전주'] = function (p) {   // 한옥마을
+    sky(p, 46, 20, 10);
+    farRidge(p, 38, 12, 51, 46);
+    hill(p, 46, 6, 53, 52);
+    function hanok(cx, by, w, h) {
+      p.rect(cx - w / 2, by - h, w, h, '#F3EEE2'); p.rect(cx + w / 2 - 3, by - h, 3, h, '#DDD4C2');
+      for (var k = 0; k <= 4; k++) p.rect(cx - w / 2 + Math.round(k * (w - 1) / 4), by - h, 1, h, '#8A5A3A');
+      p.rect(cx - w / 2, by - h, w, 1, '#8A5A3A'); p.rect(cx - w / 2 + 2, by - h + 3, 3, 2, '#C9A87A'); p.rect(cx + 2, by - h + 3, 3, 2, '#C9A87A');
+      p.rect(cx - w / 2 - 1, by, w + 2, 2, '#B8AE9B');
+      p.hanokRoof(cx, by - h, w + 10, Math.max(4, Math.round(w * .28)));
+    }
+    [[14, 52, 18, 6], [44, 51, 20, 6], [76, 52, 18, 6], [108, 51, 20, 6]].forEach(function (o) { hanok(o[0], o[1], o[2], o[3]); });
+    p.grass(54, 79, GRASS, 55);
+    [[30, 67, 26, 9], [86, 68, 28, 10]].forEach(function (o) { hanok(o[0], o[1], o[2], o[3]); });
+    for (var x = 0; x < 128; x++) for (var y = 70; y < 80; y++) p.set(x, y, (x + y * 3) % 7 === 0 ? '#BDB2A0' : y === 70 ? '#E6DCC9' : '#D3C8B4');   // 돌길
+    p.broadleaf(58, 56, 7, LEAF, 57); p.broadleaf(118, 60, 6, ['#F6C9D8', '#F0A9C2', '#E38AAB', '#C96A8E', '#6B4A2B'], 59);
+  };
+  STOPS['남원'] = function (p) {   // 광한루 + 오작교
+    sky(p, 44, 104, 12);
+    farRidge(p, 34, 12, 61, 44);
+    hill(p, 44, 6, 63, 50);
+    p.grass(48, 56, GRASS, 64);
+    p.water(56, 79, ['#7FCFD9', '#5FB8C8', '#4AA2B5', '#3B8EA3'], 65);
+    p.pavilion(80, 58, 34, 8, 9, 9);
+    for (var y = 59; y < 72; y++) for (var x = 64; x < 98; x++) if (bay(x, y) < .22 && (x - 64) % 8 < 2) p.set(x, y, '#9C5A40');   // 물에 비친 기둥
+    // 오작교: 돌 무지개다리 4칸
+    for (x = 4; x < 60; x++) {
+      var deck = 62 + Math.round(Math.abs(x - 32) * .05);
+      p.set(x, deck, '#EFE9DC'); p.set(x, deck + 1, '#CFC7B6');
+      var k = (x - 4) % 14, under = Math.round(Math.sin(k / 14 * Math.PI) * 5);
+      for (y = deck + 2; y < deck + 8 - under; y++) p.set(x, y, hash(x, y, 9) < .2 ? '#A59D8B' : '#C3BBA9');
+    }
+    // 수양버들
+    for (var b = 0; b < 2; b++) {
+      var tx = b ? 116 : 46, ty = b ? 34 : 38;
+      p.rect(tx, ty, 2, 16, '#6B4A2B');
+      for (var s = -9; s <= 9; s++) { var len = 10 + Math.round(hash(s, b, 3) * 8); for (var j = 0; j < len; j++) p.set(tx + s + Math.round(Math.sin(j / 4) * .8), ty - 3 + Math.round(Math.abs(s) * .3) + j, j < 3 ? '#6FAA4C' : (s < 0 ? '#A6D271' : '#7FB85A')); }
+    }
+  };
+  STOPS['광주'] = function (p) {   // 무등산 입석대
+    sky(p, 54, 20, 14);
+    farRidge(p, 44, 10, 71, 56);
+    var top = p.ridge({ base: 56, amp: 10, scale: 22, seed: 73, lit: '#A9B66A', mid: '#8FA058', dark: '#748749', bottom: 79 });
+    // 돌기둥(주상절리)
+    [[40, 20, 5], [46, 14, 6], [53, 18, 5], [59, 24, 6], [66, 16, 5], [72, 22, 5], [78, 28, 6]].forEach(function (c) {
+      var x0 = c[0], w = c[2], base = Math.round(top(x0)) + 3;
+      for (var y = c[1]; y < base; y++) for (var i = 0; i < w; i++) {
+        var col = i === 0 ? '#D8D1C2' : i === w - 1 ? '#7E7768' : i < w / 2 ? '#BFB7A6' : '#A19987';
+        if (hash(x0 + i, Math.floor(y / 4), 5) < .12) col = '#8E8676';
+        if ((y - c[1]) % 9 === 0 && y > c[1]) col = '#7E7768';
+        p.set(x0 + i, y, col);
+      }
+      p.rect(x0, c[1], w, 1, '#E8E2D6');
+    });
+    p.grass(66, 79, ['#C9C08A', '#B3A86F', '#9B915B', '#E3DDB8'], 74);
+    for (var x = 0; x < 128; x += 2) if (hash(x, 1, 75) < .5) { var hgt = 4 + Math.round(hash(x, 2, 75) * 4); p.line(x, 79, x + 1, 79 - hgt, '#E9E2C8'); p.set(x + 1, 79 - hgt, '#FFFFFF'); }   // 억새
+    p.broadleaf(14, 60, 8, ['#F7C66A', '#E89A3C', '#D2702D', '#A54E25', '#5A3E26'], 76); p.broadleaf(110, 62, 7, ['#F9D27A', '#EDB24A', '#D98E2E', '#B06A22', '#5A3E26'], 77);
+  };
+  STOPS['목포'] = function (p) {   // 유달산 + 목포대교
+    sky(p, 48, 100, 16);
+    p.water(48, 79, SEA, 81);
+    // 유달산: 바위산
+    p.poly([[0, 48], [6, 26], [12, 30], [18, 18], [26, 24], [32, 16], [40, 28], [48, 48]], function (x, y) { var n = fbm2(x / 3, y / 3, 82); return n > .62 ? '#D0C9B9' : n > .45 ? '#ADA592' : n > .35 ? '#6E9A55' : '#8C846F'; });
+    // 사장교: 가운데 탑 하나에서 부채꼴 케이블
+    var px = 86, deck = 44;
+    for (var x = 30; x < 128; x++) { p.set(x, deck, '#F2EEE6'); p.set(x, deck + 1, '#8A8F96'); }
+    for (var y = 10; y < deck + 6; y++) { p.set(px - 1, y, '#F4F0E8'); p.set(px, y, '#D2CCC1'); p.set(px + 1, y, '#B2ACA1'); }
+    for (var k = 1; k <= 7; k++) { p.line(px, 12 + k, px - k * 7, deck - 1, '#7D858E'); p.line(px, 12 + k, px + k * 6, deck - 1, '#7D858E'); }
+    for (x = 36; x < 128; x += 16) p.rect(x, deck + 2, 2, 5, '#9AA0A6');
+    p.boat(12, 66, 16, '#D9412E'); p.boat(100, 70, 14, '#2F6FB4');
+    p.gull(60, 20); p.gull(70, 26);
+  };
+  STOPS['제주'] = function (p) {   // 한라산 + 돌하르방 + 귤 + 돌담 + 유채꽃
+    p.grad(0, 50, SKY); p.sun(20, 12, 4); p.cloud(100, 10, 26, 9); p.cloud(46, 22, 16, 2);
+    var PK = 70;
+    for (var x = 0; x < 128; x++) {
+      var d = Math.abs(x - PK) / 60, h = 18 + Math.pow(d, 1.5) * 34 + (fbm(x / 7, 2) - .5) * 3;
+      if (Math.abs(x - PK) < 6) h = 18 + (Math.abs(x - PK) < 3 ? 1 : 0);
+      var side = (PK + 6 - x) / 26;
+      for (var y = Math.ceil(h); y < 60; y++) {
+        var depth = y - h, k = side + (fbm2(x / 4, y / 4, 6) - .5) * 1.4, tone = k > .5 ? 0 : k < -.5 ? 2 : (bay(x, y) < (k + .5) ? 0 : 2), col;
+        if (y < 22 + fbm(x / 3, 9) * 4 && depth < 5) col = ['#F7FAFC', '#E4EDF4', '#C7D7E6'][tone];
+        else if (y < 40) col = ['#9DBF8C', '#86AD7A', '#6E966A'][tone];
+        else col = ['#7DB065', '#669C58', '#4F834C'][tone];
+        if (y > 30 && hash(x, y, 8) < .07) col = '#4A7A49';
+        p.set(x, y, col);
+      }
+    }
+    [[34, 47, 7], [100, 46, 6]].forEach(function (o) { for (var xx = -o[2]; xx <= o[2]; xx++) { var hh = Math.round(Math.sqrt(1 - Math.pow(xx / o[2], 2)) * 4); for (var yy = o[1] - hh; yy < o[1] + 3; yy++) p.set(o[0] + xx, yy, xx < -1 ? '#8BBB6C' : xx > 1 ? '#5F9455' : '#76A862'); } });
+    p.grass(60, 79, ['#9FCF6E', '#86BE5D', '#6FA94F', '#B7DC85'], 33);
+    for (y = 64; y < 80; y++) for (x = 0; x < 80; x++) { var n = hash(x, y, 51); if (n < .28 + (y - 64) * .015) p.set(x, y, n < .1 ? '#FFEA6B' : '#F2CF3B'); else if (n > .96) p.set(x, y, '#5E9A45'); }
+    for (x = 0; x < 128;) {
+      var w = 4 + Math.round(hash(x, 2, 61) * 3), hg = 4 + Math.round(hash(x, 3, 61) * 2);
+      for (var j = 0; j < hg; j++) for (var i = 0; i < w; i++) { var cx = i - w / 2 + .5, cy = j - hg / 2 + .5; if (cx * cx / (w * w / 4) + cy * cy / (hg * hg / 4) > 1.05) continue; var c = cx + cy < -1.2 ? '#7A7B82' : cx + cy > 1.2 ? '#38383E' : '#55565D'; if (hash(x + i, j, 63) < .15) c = '#2E2E33'; p.set(x + i, 57 + (5 - hg) + j, c); }
+      x += w;
+    }
+    p.broadleaf(26, 47, 9, ['#8FC56E', '#5E9C4F', '#4A8443', '#33623A', '#5A3E26'], 71);
+    [[20, 44], [28, 41], [33, 48], [22, 51], [30, 53], [17, 49], [25, 46]].forEach(function (o) { p.set(o[0], o[1], '#FFC970'); p.set(o[0] + 1, o[1], '#E07F1C'); p.set(o[0], o[1] + 1, '#E07F1C'); p.set(o[0] + 1, o[1] + 1, '#C96A12'); });
+    var hx = 104;
+    function half(y) { if (y < 33) return 0; if (y <= 39) return [3, 5, 6, 7, 7, 7, 7][y - 33]; if (y <= 41) return 9; if (y <= 57) return Math.max(5, Math.round(8.4 * Math.sqrt(Math.max(0, 1 - Math.pow((y - 49.5) / 8.6, 2))))); if (y === 58) return 7; if (y <= 74) return 9 + (y > 66 ? 1 : 0); return 11; }
+    for (var gx = -13; gx <= 13; gx++) for (var gy = 77; gy < 80; gy++) if (gx * gx / 169 + (gy - 79) * (gy - 79) / 4 < 1) p.set(hx + gx + 2, gy, '#4E7F3F');
+    for (y = 33; y < 80; y++) { var hw = half(y); for (var dx = -hw; dx <= hw; dx++) { var u = dx / Math.max(1, hw), base = y >= 75 ? ['#7C7A74', '#5F5D58', '#45433F'] : ['#8A8A8F', '#65656B', '#46464C'], cc = u < -.4 ? base[0] : u > .45 ? base[2] : base[1]; if (u > -.4 && u < -.15 && bay(hx + dx, y) < .5) cc = base[0]; if (u > .2 && u < .45 && bay(hx + dx, y) < .5) cc = base[2]; if (dx === hw) cc = '#33333A'; var nn = hash(hx + dx, y, 81); if (nn < .1) cc = '#38383E'; else if (nn > .95 && u < .3) cc = '#A0A0A4'; p.set(hx + dx, y, cc); } }
+    for (dx = -8; dx <= 8; dx++) p.set(hx + dx, 42, '#3A3A40');
+    for (dx = -7; dx <= 7; dx++) p.set(hx + dx, 40, dx < 0 ? '#9A9A9E' : '#76767B');
+    [[hx - 4, 47], [hx + 4, 47]].forEach(function (e) { for (var jj = -2; jj <= 2; jj++) for (var ii = -2; ii <= 2; ii++) { if (ii * ii + jj * jj > 5) continue; p.set(e[0] + ii, e[1] + jj, ii === -1 && jj === -1 ? '#B4B4B8' : ii * ii + jj * jj > 2 ? '#3C3C42' : '#7E7E84'); } });
+    p.rect(hx - 6, 44, 4, 1, '#8E8E93'); p.rect(hx + 2, 44, 4, 1, '#74747A');
+    for (y = 46; y <= 54; y++) { var nw = y < 52 ? 1 : 2; for (dx = -nw; dx <= nw; dx++) p.set(hx + dx, y, dx < 0 ? '#8A8A8F' : dx > 0 ? '#3E3E44' : '#6A6A70'); }
+    p.set(hx - 1, 54, '#2F2F35'); p.set(hx + 1, 54, '#2F2F35'); p.rect(hx - 3, 56, 7, 1, '#34343A'); p.rect(hx - 2, 57, 5, 1, '#7A7A80');
+    function arm(y0, x0, x1) { for (var xx = x0; xx <= x1; xx++) { p.set(hx + xx, y0, '#8E8E93'); p.set(hx + xx, y0 + 1, '#6C6C72'); p.set(hx + xx, y0 + 2, '#58585E'); p.set(hx + xx, y0 + 3, '#36363C'); } for (var f = 0; f < 3; f++) p.set(hx + x1 - 1 - f * 2, y0 + 1, '#45454B'); }
+    arm(61, -8, 6); arm(67, -6, 9);
+  };
+  STOPS['여수'] = function (p) {   // 오동도 등대 + 동백꽃
+    sky(p, 46, 18, 18);
+    farRidge(p, 40, 6, 91, 46);
+    p.water(46, 79, SEA, 92);
+    // 방파제
+    for (var x = 0; x < 64; x++) { var y = 62 - Math.round(x * .12); p.set(x, y, '#EDE8DD'); p.set(x, y + 1, '#C9C2B2'); p.set(x, y + 2, '#9A9384'); }
+    // 섬
+    for (x = 50; x < 124; x++) { var hgt = Math.round(Math.sqrt(Math.max(0, 1 - Math.pow((x - 87) / 37, 2))) * 18); for (y = 58 - hgt; y < 60; y++) p.set(x, y, x < 80 ? '#5E9C4F' : '#4A8443'); p.set(x, 60, '#8C846F'); p.set(x, 61, '#B8E2F4'); }
+    var cam = ['#7FB85A', '#4E8F48', '#3D7A3F', '#2C5E33', '#5A3E26', '#D8323C'];
+    [[60, 50, 6], [70, 45, 7], [104, 46, 7], [114, 51, 5]].forEach(function (o, i) { p.broadleaf(o[0], o[1], o[2], cam, 93 + i, true); });
+    for (var k = 0; k < 40; k++) { var fx = 56 + Math.round(hash(k, 1, 94) * 64), fy = 42 + Math.round(hash(k, 2, 94) * 14); if (p.has(fx, fy)) { p.set(fx, fy, '#E0283A'); p.set(fx + 1, fy, '#F5D33A'); } }
+    // 등대
+    var lx = 88;
+    for (y = 22; y < 44; y++) { var hw = 2 + Math.round((y - 22) * .1); for (var dx = -hw; dx <= hw; dx++) p.set(lx + dx, y, dx < 0 ? '#FFFFFF' : dx > hw - 2 ? '#C9D3DC' : '#EEF2F5'); }
+    p.rect(lx - 3, 17, 7, 5, '#C9452F'); p.rect(lx - 2, 18, 5, 3, '#FFE68A'); p.rect(lx - 3, 15, 7, 2, '#8E2F21'); p.set(lx, 14, '#8E2F21');
+    p.rect(lx - 4, 29, 9, 1, '#C9452F');
+    p.boat(18, 70, 14, '#2F8F4E');
+  };
+  STOPS['진주'] = function (p) {   // 촉석루 + 남강 유등
+    sky(p, 44, 106, 20);
+    farRidge(p, 36, 10, 101, 44);
+    p.grass(44, 60, GRASS, 105);
+    // 절벽(의암바위 쪽)
+    p.poly([[18, 44], [110, 44], [116, 60], [10, 60]], function (x, y) { var n = fbm2(x / 3, y / 2, 102); return y < 46 ? '#7FB85A' : n > .6 ? '#BDB4A0' : n > .42 ? '#A0977F' : '#7C745F'; });
+    p.stoneWall(14, 113, function () { return 41; }, 4);
+    p.pavilion(64, 41, 40, 0, 9, 9);
+    p.water(60, 79, ['#6FC0D8', '#55A9C8', '#418FB2', '#357D9F'], 103);
+    // 유등 (물에 뜬 등)
+    var lc = [['#F6C443', '#D98E1F'], ['#E5533D', '#A8341F'], ['#6FB1E8', '#3C7FC0'], ['#F08FB2', '#C25A84'], ['#8FD06A', '#5A9A3E']];
+    for (var k = 0; k < 13; k++) {
+      var x = 4 + Math.round(hash(k, 1, 104) * 118), y = 63 + Math.round(hash(k, 2, 104) * 14), c = lc[k % lc.length], s = y > 70 ? 3 : 2;
+      p.rect(x, y - s, s + 1, s, c[0]); p.rect(x + s, y - s, 1, s, c[1]); p.set(x, y - s - 1, '#FFF3C2'); p.rect(x, y, s + 1, 1, '#2E7096');
+      p.set(x, y + 1, c[0]); p.set(x + 1, y + 2, c[0]);
+    }
+  };
+  STOPS['창원'] = function (p) {   // 진해 벚꽃 (여좌천 + 로망스다리)
+    sky(p, 40, 20, 22);
+    farRidge(p, 32, 10, 111, 40);
+    p.grass(40, 79, GRASS, 112);
+    // 개울: 가운데로 모이는 원근
+    p.poly([[58, 40], [70, 40], [96, 80], [32, 80]], function (x, y) { var k = hash(Math.floor(x / 2), y, 113); return k < .08 ? '#CDEEFA' : y < 55 ? '#8FD0E6' : '#6CBBD8'; });
+    p.poly([[56, 40], [58, 40], [32, 80], [26, 80]], '#C9C1AF'); p.poly([[70, 40], [72, 40], [102, 80], [96, 80]], '#C9C1AF');
+    // 로망스다리 (빨간 아치)
+    for (var x = 44; x < 86; x++) { var y = 56 - Math.round(Math.sin((x - 44) / 42 * Math.PI) * 4); p.set(x, y, '#D9412E'); p.set(x, y + 1, '#A8341F'); if ((x - 44) % 5 === 0) p.rect(x, y - 3, 1, 3, '#D9412E'); p.set(x, y - 3, '#E5533D'); }
+    var sak = ['#FDE3EC', '#F7C6D6', '#F2A7C0', '#E688A8', '#5A3E26'];
+    [[10, 44, 12], [36, 34, 9], [50, 28, 6], [80, 28, 6], [94, 34, 9], [118, 44, 12], [-2, 66, 12], [130, 66, 12]].forEach(function (o, i) { p.broadleaf(o[0], o[1], o[2], sak, 114 + i); });
+    for (var k = 0; k < 60; k++) p.set(Math.round(hash(k, 1, 115) * 128), Math.round(hash(k, 2, 115) * 80), hash(k, 3, 115) < .5 ? '#FDE3EC' : '#F2A7C0');   // 꽃잎
+  };
+  STOPS['부산'] = function (p) {   // 광안대교 + 해운대
+    p.grad(0, 46, ['#6CBAE9', '#86C8EE', '#A2D6F1', '#C1E3F2', '#E2EFEE']); p.sun(108, 11, 4); p.cloud(30, 12, 24, 5); p.cloud(78, 7, 16, 6);
+    [[52, 18], [58, 15], [96, 25]].forEach(function (g) { p.gull(g[0], g[1]); });
+    p.ridge({ base: 40, amp: 11, scale: 16, seed: 12, lit: FAR.lit, mid: FAR.mid, dark: FAR.dark, bottom: 46 });
+    for (var x = 66; x < 128;) {
+      var w = 4 + Math.round(hash(x, 1, 31) * 4), h = 10 + Math.round(hash(x, 2, 31) * 22) + (x > 100 && x < 116 ? 8 : 0);
+      for (var yy = 46 - h; yy < 46; yy++) for (var xx = x; xx < x + w; xx++) { var col = xx === x + w - 1 ? '#6C8FAE' : xx === x ? '#B8D3E6' : '#8DB0CD'; if ((yy - (46 - h)) % 3 === 1 && (xx - x) % 2 === 1 && xx < x + w - 1) col = hash(xx, yy, 2) < .3 ? '#E9F4FA' : '#A9C8DD'; if (yy === 46 - h) col = '#C9DDEB'; p.set(xx, yy, col); }
+      x += w + (hash(x, 3, 31) < .3 ? 1 : 0);
+    }
+    p.water(46, 79, SEA, 41);
+    var deck = 41;
+    for (x = 0; x < 128; x++) { p.set(x, deck, '#F2EEE6'); p.set(x, deck + 1, '#B7B1A6'); p.set(x, deck + 2, '#7F858C'); }
+    for (x = 6; x < 128; x += 14) { p.rect(x, deck + 3, 2, 6, '#9AA0A6'); p.set(x, deck + 3, '#C8CCD0'); }
+    var tA = 38, tB = 88, top = 13, sag = 37;
+    function cy(x0) { if (x0 >= tA && x0 <= tB) { var u = (x0 - (tA + tB) / 2) / ((tB - tA) / 2); return top + (sag - top) * (1 - u * u); } if (x0 < tA) return top + (deck - 2 - top) * Math.pow((tA - x0) / tA, .8); return top + (deck - 2 - top) * Math.pow((x0 - tB) / (128 - tB), .8); }
+    for (x = 0; x < 128; x++) { var c = Math.round(cy(x)); if (x % 3 === 0) for (var hy = c + 1; hy < deck; hy++) p.set(x, hy, '#A8B0B8'); p.set(x, c, '#56606B'); }
+    [tA, tB].forEach(function (tx) { for (var y2 = 12; y2 < deck + 9; y2++) { p.set(tx - 3, y2, '#F4F0E8'); p.set(tx - 2, y2, '#CFC9BE'); p.set(tx + 2, y2, '#F4F0E8'); p.set(tx + 3, y2, '#CFC9BE'); } p.rect(tx - 3, 14, 7, 2, '#E4DED3'); p.rect(tx - 3, 27, 7, 2, '#E4DED3'); p.rect(tx - 3, 12, 7, 1, '#FFFFFF'); });
+    for (var y = 64; y < 80; y++) for (x = 0; x < 128; x++) { var edge = 64 + (x - 40) * .22 + Math.sin(x / 5) * .8; if (y < edge) continue; p.set(x, y, hash(x, y, 7) < .08 ? '#D9C08A' : y - edge < 1.5 ? '#FFFFFF' : y - edge < 2.5 ? '#D6EEF7' : fbm2(x / 6, y / 3, 3) > .55 ? '#F6E6BF' : '#EBD5A2'); }
+    p.rect(16, 66, 1, 10, '#8E6A42');
+    for (var a = -7; a <= 7; a++) { var hh = Math.round(3 - Math.abs(a) * .35); for (var b = 0; b < hh; b++) p.set(16 + a, 64 - b + Math.round(Math.abs(a) * .25), Math.floor((a + 7) / 3) % 2 ? '#FFFFFF' : '#E2513E'); }
+  };
+  STOPS['울산'] = function (p) {   // 대왕암 + 고래
+    sky(p, 40, 22, 24);
+    p.water(40, 79, SEA, 121);
+    // 바위섬들 (붉은 바위)
+    var rocks = [[6, 58, 20, 18], [30, 62, 16, 12], [60, 60, 22, 16], [96, 66, 30, 12]];
+    rocks.forEach(function (r, i) {
+      for (var x = r[0]; x < r[0] + r[2]; x++) {
+        var u = (x - r[0]) / r[2], top = r[1] - Math.round(Math.sin(u * Math.PI) * r[3] * .7 + hash(x, i, 122) * 3);
+        for (var y = top; y < r[1] + 4; y++) { var col = u < .35 ? '#C49C78' : u > .7 ? '#7A5A44' : '#A07A5C'; if (hash(x, y, 123) < .12) col = '#5E4636'; if (y >= r[1] + 2) col = '#FFFFFF'; p.set(x, y, col); }
+      }
+    });
+    // 대왕교(파란 아치 다리)
+    for (var x = 22; x < 64; x++) { var y = 50 - Math.round(Math.sin((x - 22) / 42 * Math.PI) * 6); p.set(x, y, '#2F6FB4'); p.set(x, y + 1, '#1F4E86'); if (x % 3 === 0) p.line(x, y + 1, x, 52, '#7FA8D6'); }
+    for (x = 22; x < 64; x++) p.set(x, 52, '#E9E5DC');
+    // 고래: 물 위로 크게 들어 올린 꼬리지느러미 + 물보라
+    var wx = 102, wy = 54, tail = function (x, y) { var u = (x - wx) / 14; return u < -.2 ? '#6F93B3' : u > .3 ? '#34506B' : '#4E6F8F'; };
+    p.poly([[wx - 3, wy + 2], [wx - 2, wy - 12], [wx + 2, wy - 12], [wx + 3, wy + 2]], tail);                     // 꼬리 자루
+    p.poly([[wx, wy - 11], [wx - 16, wy - 24], [wx - 12, wy - 14], [wx - 3, wy - 8]], tail);                       // 왼쪽 날개
+    p.poly([[wx, wy - 11], [wx + 16, wy - 24], [wx + 12, wy - 14], [wx + 3, wy - 8]], tail);                       // 오른쪽 날개
+    p.line(wx - 16, wy - 24, wx - 3, wy - 12, '#8FB0CC'); p.line(wx, wy - 11, wx, wy - 4, '#2A4157');
+    for (var k = -9; k <= 9; k++) { p.set(wx + k, wy + 2, '#FFFFFF'); if (Math.abs(k) > 3 && hash(k, 1, 125) < .6) p.set(wx + k, wy + 1 - Math.round(hash(k, 2, 125) * 3), '#E3F4FB'); }
+    for (k = 0; k < 10; k++) p.set(wx - 14 + Math.round(hash(k, 3, 125) * 28), wy - 26 + Math.round(hash(k, 4, 125) * 10), '#E3F4FB');   // 떨어지는 물방울
+    p.conifer(10, 46, 12, PINE); p.conifer(20, 50, 9, PINE);
+  };
+  STOPS['포항'] = function (p) {   // 호미곶 상생의 손 + 해돋이
+    p.grad(0, 44, ['#8CCBEF', '#AEDBF2', '#D6E9F0', '#F5E4C8', '#FFD9A0']);
+    p.sun(40, 40, 7, true);
+    p.water(44, 79, ['#9FD6EC', '#6FBDE0', '#4FA6D3', '#3A8CC0'], 131);
+    for (var y = 45; y < 79; y++) for (var x = 30; x < 50; x++) if (hash(x, y, 132) < .25 && Math.abs(x - 40) < 3 + (y - 44) * .25) p.set(x, y, '#FFE3A6');   // 햇빛 길
+    // 손: 손바닥 + 다섯 손가락
+    var hx = 88, base = 70, pal = ['#7E9A93', '#5E7A74', '#41585A'];
+    function bar(x0, w, top) {
+      for (var yy = top; yy < base; yy++) for (var i = 0; i < w; i++) {
+        if (yy === top && (i === 0 || i === w - 1)) continue;   // 둥근 손끝
+        var u = i / (w - 1), c = u < .3 ? pal[0] : u > .7 ? pal[2] : pal[1];
+        if (yy <= top + 1) c = '#9EB6AF';
+        p.set(x0 + i, yy, c);
+      }
+      p.set(x0 + 1, top + 3, pal[2]); p.rect(x0, top + Math.round((base - top) * .45), w, 1, pal[2]);   // 손톱·마디
+    }
+    bar(hx - 9, 18, 46);              // 손바닥
+    bar(hx - 9, 4, 30); bar(hx - 4, 4, 24); bar(hx + 1, 4, 26); bar(hx + 6, 3, 32);   // 네 손가락
+    p.poly([[hx + 8, 52], [hx + 16, 40], [hx + 19, 42], [hx + 11, 56]], function (x, y) { return x < hx + 13 ? pal[1] : pal[2]; });   // 엄지
+    for (x = hx - 12; x < hx + 14; x++) p.set(x, base, '#FFFFFF');
+    p.gull(hx - 3, 21); p.gull(64, 18); p.gull(110, 26);
+  };
+  STOPS['안동'] = function (p) {   // 하회마을 초가 + 하회탈
+    sky(p, 46, 18, 26);
+    farRidge(p, 38, 10, 141, 46);
+    hill(p, 46, 6, 142, 52);
+    p.grass(50, 79, GRASS, 143);
+    function chogajip(cx, by, w, h) {
+      p.rect(cx - w / 2 + 2, by - h, w - 4, h, '#EFE4CC'); p.rect(cx + w / 2 - 5, by - h, 3, h, '#D6C8A8');
+      p.rect(cx - 2, by - h + 2, 4, h - 2, '#8E6A42'); p.rect(cx - w / 2 + 4, by - h + 2, 3, 3, '#C9A87A');
+      for (var r = 0; r < 7; r++) { var half = Math.round(w / 2 * Math.sqrt(1 - Math.pow((6 - r) / 7, 2))) + 1; for (var dx = -half; dx <= half; dx++) p.set(cx + dx, by - h - 7 + r, dx < -half / 3 ? '#E3C27E' : dx > half / 3 ? '#B89452' : '#D2AD66'); }
+      for (var dx2 = -w / 2; dx2 <= w / 2; dx2 += 3) p.set(cx + dx2, by - h - 4, '#9A7A3E');
+    }
+    chogajip(20, 60, 22, 7); chogajip(52, 58, 20, 6); chogajip(98, 61, 24, 7);
+    // 기와집 하나
+    p.rect(68, 52, 16, 7, '#F3EEE2'); p.hanokRoof(76, 52, 24, 5);
+    // 강 (낙동강이 마을을 돌아 흐름)
+    p.poly([[0, 70], [128, 66], [128, 80], [0, 80]], function (x, y) { return hash(Math.floor(x / 3), y, 144) < .07 ? '#CDEEFA' : y < 72 ? '#8FD0E6' : '#6CBBD8'; });
+    for (var x = 0; x < 128; x++) p.set(x, Math.round(70 - x * .03), '#EAD9A6');
+    // 하회탈 (양반탈) 팻말
+    var mx = 112, my = 22;
+    p.rect(mx - 1, my + 8, 2, 20, '#7A5A3D');
+    for (var y = -8; y <= 9; y++) for (var dx = -7; dx <= 7; dx++) if (dx * dx / 49 + y * y / 81 <= 1) p.set(mx + dx, my + y, dx < -2 ? '#F1D7A8' : dx > 3 ? '#C89E62' : '#E2BE84');
+    [[-4, -1], [3, -1]].forEach(function (e) { p.rect(mx + e[0] - 1, my + e[1], 3, 1, '#3B2A1A'); p.set(mx + e[0], my + e[1] - 1, '#3B2A1A'); });
+    for (var k = -4; k <= 4; k++) p.set(mx + k, my + 5 + Math.round(k * k / 8), '#3B2A1A');
+    p.set(mx, my + 2, '#B88A52'); p.rect(mx - 6, my + 3, 2, 1, '#E89A8A'); p.rect(mx + 5, my + 3, 2, 1, '#E89A8A');
+  };
+  STOPS['태백'] = function (p) {   // 눈 덮인 태백산 + 주목
+    p.grad(0, 50, ['#7FC3EC', '#9ACFF0', '#B8DCF2', '#D7EAF4', '#EEF3F4']); p.sun(108, 12, 5);
+    p.cloud(36, 12, 22, 31);
+    p.ridge({ base: 50, amp: 26, scale: 12, seed: 151, jag: 2, lit: '#FFFFFF', mid: '#E1E9F1', dark: '#A9BBD0', bottom: 79 });
+    // 산허리의 눈 덮인 숲 (짙은 초록 점 + 눈)
+    for (var tt = 0; tt < 128; tt += 3) { var by2 = 56 + Math.round(hash(tt, 1, 153) * 4); p.conifer(tt, by2, 5 + Math.round(hash(tt, 2, 153) * 3), ['#F4F8FB', '#5E7E66', '#3F5E4A', '#4A3A2E']); }
+    p.ridge({ base: 64, amp: 6, scale: 20, seed: 152, lit: '#FFFFFF', mid: '#EEF3F8', dark: '#D3DEE9', bottom: 79 });
+    // 주목 (오래된 나무에 눈꽃)
+    function jumok(x, by, h, s) {
+      for (var y = 0; y < h; y++) { var xx = x + Math.round(Math.sin(y / 4 + s) * 1.5); p.set(xx, by - y, '#7A5F4A'); p.set(xx + 1, by - y, '#5A4434'); }
+      for (var b = 0; b < 4; b++) { var yy = by - h + 3 + b * 4, dir = b % 2 ? 1 : -1, len = 4 + b; for (var i = 0; i < len; i++) p.set(x + dir * i, yy - Math.round(i * .4), '#6A5240'); }
+      for (var k = 0; k < 5; k++) { var cx = x + Math.round((hash(k, 1, s) - .5) * 12), cy = by - h + Math.round(hash(k, 2, s) * h * .6); p.disc(cx, cy, 2, '#FFFFFF'); p.set(cx + 1, cy + 1, '#C9D7E5'); p.set(cx - 1, cy + 2, '#3F6B45'); }
+    }
+    jumok(22, 78, 30, 3); jumok(100, 79, 26, 7); jumok(118, 76, 18, 9);
+    for (var k = 0; k < 14; k++) { var fx = 40 + k * 3, fy = 78 - Math.round(k * 1.1); p.set(fx, fy, '#B5C6D8'); }   // 발자국
+  };
+  STOPS['강릉'] = function (p) {   // 경포해변 + 소나무
+    sky(p, 40, 100, 32);
+    p.water(40, 62, ['#8BD3EE', '#5FB8E0', '#3F9CCF', '#2F86BD'], 161);
+    for (var y = 62; y < 80; y++) for (var x = 0; x < 128; x++) { var edge = 62 + Math.sin(x / 6) * 1; p.set(x, y, y < edge + 1.5 ? '#FFFFFF' : y < edge + 2.5 ? '#D6EEF7' : fbm2(x / 6, y / 3, 162) > .55 ? '#F6E6BF' : '#EBD5A2'); }
+    // 경포대 (언덕 위 작은 누각)
+    for (x = 90; x < 128; x++) { var hgt = Math.round(Math.sqrt(Math.max(0, 1 - Math.pow((x - 112) / 22, 2))) * 12); for (y = 52 - hgt; y < 62; y++) p.set(x, y, x < 108 ? '#7FB85A' : '#5E9C4F'); }
+    p.pavilion(112, 42, 14, 2, 4, 4);
+    // 소나무 (붉은 줄기, 휘어진 가지)
+    function sonamu(x, by, h, s) {
+      for (var yy = 0; yy < h; yy++) { var xx = x + Math.round(Math.sin(yy / 6 + s) * 2); p.set(xx, by - yy, '#A9553A'); p.set(xx + 1, by - yy, '#7C3A26'); }
+      [[-6, .7], [5, .5], [-3, .25], [4, .9]].forEach(function (c, i) { p.broadleaf(x + c[0] + Math.round(Math.sin(c[1] * 3 + s) * 2), by - Math.round(h * c[1]) - 2, 4, ['#5E9C55', '#467F45', '#3B6E3E', '#2C5532', '#7C3A26'], s * 10 + i, true); });
+    }
+    sonamu(14, 78, 34, 1); sonamu(38, 80, 28, 3);
+  };
+  STOPS['속초'] = function (p) {   // 설악산 울산바위 + 항구
+    sky(p, 46, 20, 34);
+    // 울산바위: 둥근 화강암 봉우리 여러 개
+    var domes = [[30, 30, 10], [46, 24, 11], [62, 22, 12], [78, 26, 11], [94, 32, 10]];
+    for (var x = 10; x < 112; x++) {
+      var top = 99;
+      domes.forEach(function (d) { var dx = (x - d[0]) / d[2]; if (Math.abs(dx) < 1) top = Math.min(top, d[1] + Math.round((1 - Math.sqrt(1 - dx * dx)) * d[2] * 1.4)); });
+      if (top > 60) continue;
+      for (var y = top; y < 50; y++) { var n = fbm2(x / 3, y / 3, 171), col = n > .64 ? '#EFECE6' : n > .46 ? '#D6D3CB' : n > .34 ? '#B7B3A9' : '#8F8B82'; if (hash(x, Math.floor(y / 3), 172) < .06) col = '#7A766E'; p.set(x, y, col); }
+    }
+    hill(p, 50, 6, 173, 60);
+    for (var t = 0; t < 128; t += 4) p.conifer(t + 1, 58 + Math.round(hash(t, 1, 174) * 2), 5 + Math.round(hash(t, 2, 174) * 3), PINE);
+    p.water(60, 79, SEA, 175);
+    p.rect(0, 59, 128, 2, '#C9C1AF'); p.rect(0, 59, 128, 1, '#E6DFCE');
+    p.boat(10, 66, 16, '#D9412E'); p.boat(34, 72, 14, '#2F6FB4'); p.boat(60, 67, 16, '#2F8F4E');
+    p.rect(104, 46, 5, 14, '#E5533D'); p.rect(104, 46, 2, 14, '#F07A63'); p.rect(103, 44, 7, 2, '#8E2F21'); p.rect(105, 50, 3, 1, '#FFFFFF');   // 빨간 등대
+  };
+  STOPS['춘천'] = function (p) {   // 남이섬 메타세쿼이아 길
+    sky(p, 44, 64, 36);
+    farRidge(p, 40, 8, 181, 46);
+    var vx = 64, vy = 46;
+    p.grass(46, 79, GRASS, 182);
+    p.poly([[vx - 2, vy], [vx + 2, vy], [96, 80], [32, 80]], function (x, y) { var n = hash(x, y, 183); return n < .1 ? '#E39A4A' : n > .94 ? '#C96A2E' : y > 70 ? '#C9A26F' : '#D3B485'; });
+    // 메타세쿼이아: 길 양쪽, 멀수록 작게
+    for (var k = 0; k < 9; k++) {
+      var t = Math.pow(k / 8, 1.6), sideL = Math.round(vx - 6 - t * 60), sideR = Math.round(vx + 6 + t * 60), base = Math.round(vy + 2 + t * 32), h = Math.round(8 + t * 48);
+      [sideL, sideR].forEach(function (x, j) {
+        var w = Math.max(1, Math.round(h * .16));
+        for (var y = 0; y < h; y++) { var half = Math.round(w * (y / h) * 1.1); for (var dx = -half; dx <= half; dx++) p.set(x + dx, base - h + y, dx < 0 ? '#8FB565' : dx > half / 2 ? '#4E7E3E' : '#6E9A4E'); }
+        p.rect(x, base - Math.round(h * .12), 1, Math.round(h * .12) + 1, '#7A4E30');
+        if (hash(k, j, 184) < .5) for (var y2 = 0; y2 < h; y2 += 3) if (hash(y2, k + j, 185) < .3) p.set(x - 1, base - h + y2, '#D98A3E');
+      });
+    }
+  };
+  STOPS['서울'] = function (p) {   // 남산서울타워 + 한강
+    sky(p, 48, 20, 38);
+    farRidge(p, 42, 8, 191, 50);
+    // 남산
+    var top = p.ridge({ base: 48, amp: 14, scale: 30, seed: 192, lit: '#8DC062', mid: '#73AA55', dark: '#5A9049', bottom: 56 });
+    var tx = 64, ty = Math.round(top(tx));
+    for (var y = 8; y < ty; y++) { var w = y < 18 ? 0 : y < 22 ? 2 : 1; for (var dx = -w; dx <= w + 1; dx++) p.set(tx + dx, y, dx < 1 ? '#F4F0E8' : '#C9C3B8'); }
+    p.rect(tx - 4, 18, 10, 4, '#E9E4DA'); p.rect(tx - 4, 18, 10, 1, '#FFFFFF'); p.rect(tx - 4, 21, 10, 1, '#9AA4AE'); p.rect(tx - 3, 19, 8, 1, '#7FB6DA');
+    p.rect(tx, 2, 1, 6, '#C9452F'); p.set(tx, 1, '#FFFFFF');
+    // 빌딩 숲
+    for (var x = 0; x < 128;) {
+      var bw = 4 + Math.round(hash(x, 1, 193) * 5), bh = 6 + Math.round(hash(x, 2, 193) * 12);
+      for (var yy = 58 - bh; yy < 58; yy++) for (var xx = x; xx < x + bw; xx++) { var c = xx === x + bw - 1 ? '#8E9BAA' : '#B9C4CF'; if ((yy % 3 === 1) && ((xx - x) % 2 === 1)) c = '#E4EEF5'; p.set(xx, yy, c); }
+      x += bw + 1;
+    }
+    p.water(58, 79, ['#8FD0E6', '#6CBBD8', '#4FA2C6', '#3C8BB2'], 194);
+    for (x = 0; x < 128; x++) { p.set(x, 66, '#E9E5DC'); p.set(x, 67, '#9AA0A6'); }
+    for (x = 4; x < 128; x += 12) for (var a = 0; a < 12; a++) { var ay = 66 - Math.round(Math.sin(a / 12 * Math.PI) * 4); p.set(x + a, ay, '#7D8C9B'); }
+    p.boat(90, 74, 14, '#2F6FB4');
+  };
+  STOPS['이천'] = function (p) {   // 도자기 가마 + 논
+    sky(p, 46, 104, 40);
+    farRidge(p, 38, 8, 201, 46);
+    // 논 (노란 벼, 줄무늬)
+    for (var y = 46; y < 80; y++) for (var x = 0; x < 128; x++) { var row = Math.floor((y - 46) / (2 + (y - 46) * .12)); var rc = row % 2 ? '#E9CD62' : '#D8B84A'; if (hash(x, y, 202) < .1) rc = '#F5E08A'; p.set(x, y, rc); }
+    for (x = 0; x < 128; x++) p.set(x, 58, '#9C7A3E');
+    // 오름가마: 비탈을 따라 이어진 둥근 칸들
+    for (var k = 0; k < 5; k++) {
+      var cx = 26 + k * 12, cy = 54 - k * 3;
+      for (var dy = -7; dy <= 0; dy++) for (var dx = -6; dx <= 6; dx++) if (dx * dx / 36 + dy * dy / 49 <= 1) p.set(cx + dx, cy + dy, dx < -2 ? '#C26A48' : dx > 2 ? '#8A3F28' : '#A9553A');
+      p.rect(cx - 2, cy - 3, 3, 3, '#3B2418');
+    }
+    p.rect(88, 20, 5, 22, '#A9553A'); p.rect(88, 20, 2, 22, '#C26A48');
+    for (k = 0; k < 6; k++) p.disc(91 + k * 3, 16 - k * 2, 2 + (k > 2 ? 1 : 0), k % 2 ? '#E6E9EC' : '#F4F6F7');   // 연기
+    // 항아리
+    function jar(cx, by, r) {
+      for (var y2 = -r * 2; y2 <= 0; y2++) { var t = (y2 + r) / r, hw = Math.round(r * Math.sqrt(Math.max(0, 1 - t * t)) + (y2 < -r * 1.6 ? -r * .5 : 0)); for (var dx2 = -hw; dx2 <= hw; dx2++) p.set(cx + dx2, by + y2, dx2 < -hw / 3 ? '#8A5532' : dx2 > hw / 3 ? '#4A2A16' : '#6B3E22'); }
+      p.rect(cx - Math.round(r * .45), by - r * 2 - 1, Math.round(r * .9) + 1, 2, '#5A3420'); p.set(cx - Math.round(r * .5), by - r * 1.3, '#C9905E');
+    }
+    jar(96, 78, 7); jar(112, 79, 5); jar(14, 78, 6);
+  };
+  STOPS['충주'] = function (p) {   // 충주호 + 사과나무
+    sky(p, 44, 22, 42);
+    farRidge(p, 34, 14, 211, 44);
+    hill(p, 44, 8, 212, 50);
+    p.water(50, 66, ['#8FD0E6', '#6CBBD8', '#56A9CB', '#4597BC'], 213);
+    for (var y = 51; y < 60; y++) for (var x = 0; x < 128; x++) if (bay(x, y) < .2) p.set(x, y, '#7DB98A');   // 물에 비친 산
+    // 유람선
+    p.rect(70, 56, 24, 3, '#FFFFFF'); p.rect(72, 59, 20, 1, '#D9E2EA'); p.rect(74, 52, 14, 4, '#F4F0E8'); p.rect(75, 53, 12, 1, '#7FB6DA'); p.rect(78, 49, 6, 3, '#D9412E');
+    p.grass(66, 79, GRASS, 214);
+    var apple = ['#A6D271', '#6FAA4C', '#4E8A3E', '#356A33', '#6B4A2B'];
+    [[16, 56, 10], [50, 60, 8], [112, 57, 10]].forEach(function (o, i) {
+      p.broadleaf(o[0], o[1], o[2], apple, 215 + i);
+      for (var k = 0; k < 9; k++) { var ax = o[0] + Math.round((hash(k, 1, 216 + i) - .5) * o[2] * 2), ay = o[1] + Math.round((hash(k, 2, 216 + i) - .5) * o[2] * 1.4); if (p.has(ax, ay)) { p.set(ax, ay, '#E33A2E'); p.set(ax + 1, ay, '#B82A22'); p.set(ax, ay - 1, '#FF7A66'); } }
+    });
+  };
+
+  // 지명 → 그림 (이름 안에 들어 있으면 연결). 긴 이름부터 찾는다
+  var KEYS = Object.keys(STOPS).sort(function (a, b) { return b.length - a.length; });
+  var cache = {};
+  function stopKey(name) { var n = String(name || '').replace(/\s/g, ''); for (var i = 0; i < KEYS.length; i++) if (n.indexOf(KEYS[i]) >= 0) return KEYS[i]; return null; }
+  function stopURL(name) {
+    var k = stopKey(name); if (!k) return null;
+    if (!cache[k]) { try { var p = new Pix(128, 80); STOPS[k](p); cache[k] = p.done().toDataURL(); } catch (e) { cache[k] = ''; } }
+    return cache[k] || null;
+  }
+
+  /* ── 결과 카드 풍경: 흐르는 띠 몇 장을 미리 그려 두고 옮겨 그린다 (빠르게) ── */
+  var STRIP = 320, stripCache = {}, stripKeys = [];
+  function sceneStrips(W, H, wx) {
+    // 카드 높이가 바뀌는 동안 매 순간 새로 그리지 않게 높이를 4점 단위로 올림. 최근 12가지 크기만 기억(메모리 아끼기)
+    H = Math.ceil(H / 4) * 4;
+    var key = H + (wx || '');
+    if (stripCache[key]) return stripCache[key];
+    stripKeys.push(key);
+    if (stripKeys.length > 12) delete stripCache[stripKeys.shift()];
+    var gy = Math.round(H * .64), ry = Math.round(H * .76), snow = wx === 'snow', dull = wx === 'rain' || wx === 'fog' || wx === 'storm';
+    var far = new Pix(STRIP, H);
+    far.ridge({ base: Math.round(H * .5), amp: Math.round(H * .26), scale: 20, seed: 5, per: STRIP, jag: 2,
+      lit: dull ? '#AEBBCB' : '#B9CBE2', mid: dull ? '#9AA9BC' : '#A3B7D5', dark: dull ? '#8796AB' : '#8EA3C6',
+      snow: '#F7FAFC', snowShade: '#D2DEEB', snowY: Math.round(H * (snow ? .42 : .32)), bottom: gy });
+    var mid = new Pix(STRIP, H), midTop = mid.ridge({ base: Math.round(H * .58), amp: Math.round(H * .12), scale: 20, seed: 8, per: STRIP,
+      lit: snow ? '#F4F8FB' : '#86BE62', mid: snow ? '#E2EAF1' : '#6AA653', dark: snow ? '#C4D3E1' : '#528C47', bottom: gy });
+    for (var k = 0; k < STRIP / 6; k++) {
+      if (hash(k, 0, 12) < .35) continue;
+      var tx = Math.round(k * 6 + hash(k, 1, 12) * 3);
+      mid.conifer(tx, Math.round(midTop(tx) + 3 + hash(k, 2, 12) * 4), Math.round(H * .06) + Math.round(hash(k, 3, 12) * 4), snow ? ['#E8F0F6', '#6E9A70', '#4E7A55', '#4A3422'] : ['#5FA052', '#468545', '#33683A', '#4A3422']);
+    }
+    var near = new Pix(STRIP, H);
+    near.grass(gy - 2, ry - 1, snow ? ['#FFFFFF', '#EEF3F7', '#DCE6EF', '#FFFFFF'] : ['#A6D677', '#8EC765', '#78B656', '#C2E594'], 7, 0, STRIP);
+    for (k = 0; k < STRIP / 58; k++) {
+      var bx = k * 58;
+      if (hash(k, 0, 21) < .55) near.broadleaf(bx + 14, gy - Math.round(H * .08), Math.round(H * .08) + Math.round(hash(k, 1, 21) * 3), snow ? ['#FFFFFF', '#E6EEF5', '#8FB08A', '#5E7E5E', '#6B4A2B'] : LEAF, 100 + k);
+      else near.conifer(bx + 14, gy + 2, Math.round(H * .16), PINE);
+      if (hash(k, 2, 21) < .45) near.house(bx + 34, gy + 2, 14, Math.round(H * .1));
+    }
+    var ground = new Pix(STRIP, H);
+    ground.rect(0, ry - 2, STRIP, 2, snow ? '#DCE6EF' : '#5E9E4B');
+    for (var x = 0; x < STRIP; x++) {
+      var g = hash(x, 0, 31);
+      if (!snow) { if (g < .45) { ground.set(x, ry - 3, '#5E9E4B'); if (g < .2) ground.set(x, ry - 4, '#7DBB5E'); } if (g > .97) { ground.set(x, ry - 4, '#FF8FB1'); ground.set(x, ry - 3, '#5E9E4B'); } else if (g > .94) ground.set(x, ry - 4, '#FFE27A'); }
+      for (var y = ry; y < H; y++) {
+        var n = fbm2(x / 6, y / 3, 9, STRIP / 6), c = snow ? (n > .55 ? '#F2ECE3' : '#E2D6C6') : n > .6 ? '#D8B686' : n > .42 ? '#C9A26F' : '#B88E5B';
+        if (y === ry) c = snow ? '#FFFFFF' : '#E2C597';
+        var pb = hash(Math.floor(x / 2), y, 41);
+        if (pb < .03) c = snow ? '#C9BBA8' : '#8E6A42'; else if (pb > .985) c = snow ? '#FFFFFF' : '#F0DDB9';
+        ground.set(x, y, c);
+      }
+    }
+    return (stripCache[key] = { far: far.done(), mid: mid.done(), near: near.done(), ground: ground.done(), gy: gy, ry: ry });
+  }
+
+  return { Pix: Pix, hash: hash, bay: bay, fbm: fbm, fbm2: fbm2, stopURL: stopURL, stopKey: stopKey, sceneStrips: sceneStrips, STRIP: STRIP, stops: STOPS };
+})();
+</script>
+<script>
 (function () {
   'use strict';
 
@@ -1107,7 +1822,7 @@ window.NB_LIBS = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '96';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '97';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -1586,37 +2301,14 @@ window.NB_LIBS = (function () {
       var cc = wx === 'rain' ? '#C7CED5' : '#FFFFFF';
       R(cc, cx, cy + u * 2, cw, u * 3); R(cc, cx + cw * .2, cy, cw * .55, u * 2); R(mixCol(cc, '#7E8C99', .25), cx, cy + u * 5, cw, u);
     }
-    // 먼 산 (계단 모양), 느리게
-    var mcol = wx ? '#7F98A8' : '#6E9DB8', per = Math.max(60, W * .45), off = (t * 8) % per;
-    for (var k = -1; k < W / per + 2; k++) {
-      var bx = k * per - off, mh = H * (.22 + ((k + 99) % 3) * .05);
-      for (var sy2 = 0; sy2 < mh; sy2 += u) { var half = (mh - sy2) * 1.2; R(mcol, bx + per / 2 - half, gy - sy2 - u, half * 2, u); }
-      R('#FFFFFF', bx + per / 2 - u, gy - mh, u * 2, u);   // 산꼭대기 눈
-    }
-    // 언덕·나무·집, 중간 빠르기
-    var per2 = Math.max(70, W * .38), off2 = (t * 26) % per2;
-    for (k = -1; k < W / per2 + 2; k++) {
-      var hx = k * per2 - off2;
-      R('#5DA454', hx, gy - H * .06, per2 * .7, H * .06);
-      // 나무
-      var tx0 = hx + per2 * .15; R('#2F7A3C', tx0, gy - H * .2, u * 5, H * .12); R('#3E9A4C', tx0 + u, gy - H * .22, u * 3, u * 3); R('#6B4A2B', tx0 + u * 2, gy - H * .08, u, H * .08);
-      // 집 (지붕 빨강)
-      if ((k + 99) % 2 === 0) { var hx2 = hx + per2 * .5; R('#F4EEDC', hx2, gy - H * .12, u * 9, H * .12); R('#C4432B', hx2 - u, gy - H * .16, u * 11, H * .045); R('#5B7FA6', hx2 + u * 3, gy - H * .08, u * 2, u * 2); }
-    }
-    // 풀밭 + 흙길 산책로 (자갈·풀이 빠르게 뒤로 흐름). 강아지는 차도 대신 산책로를 달린다
+    // 땅: 미리 그려 둔 띠 4장을 다른 빠르기로 흘린다 (먼 산 → 숲 언덕 → 길가 나무·집 → 풀·흙길). 빛은 왼쪽 위
+    var SS = NBPix.sceneStrips(W, H, wx === 'storm' ? 'rain' : wx), SPW = NBPix.STRIP;
+    [[SS.far, 5], [SS.mid, 14], [SS.near, 34], [SS.ground, 70]].forEach(function (L) {
+      var o = Math.round(((t * L[1] + st.seed) % SPW + SPW) % SPW);
+      x.drawImage(L[0], -o, 0); if (SPW - o < W) x.drawImage(L[0], SPW - o, 0);
+    });
     var snow = wx === 'snow';
-    R(snow ? '#EEF3F7' : '#6CBF5A', 0, gy, W, ry - gy);
-    R(snow ? '#D7E0E8' : '#58A84A', 0, ry - u, W, u);
-    R(snow ? '#E2D6C6' : '#C49A6C', 0, ry, W, H - ry);
-    R(snow ? '#F2ECE3' : '#D3AE84', 0, ry, W, u);
-    var step = Math.max(10, W * .09), off3 = (t * 70) % step;
-    for (var dx = -off3, n = 0; dx < W + step; dx += step, n++) {
-      var k2 = (n + Math.floor(t * 70 / step)) % 5;
-      R(snow ? '#C9BBA8' : '#A97C50', dx, ry + (H - ry) * (.3 + k2 * .1), u * 2, u);          // 자갈
-      R(snow ? '#BBAE9C' : '#8E6640', dx + step * .5, ry + (H - ry) * (.65 + (k2 % 2) * .15), u, u);
-      if (!snow) { R('#4C9A3E', dx + step * .3, ry - u * 3, u, u * 2); R('#4C9A3E', dx + step * .3 + u, ry - u * 2, u, u); }   // 길가 풀
-      if (!snow && k2 === 2) { R('#FF8FB1', dx + step * .7, ry - u * 2, u * 2, u * 2); R('#FFE27A', dx + step * .7 + u / 2, ry - u * 1.5, u, u); }   // 꽃
-    }    // 날씨 알갱이
+    // 날씨 알갱이
     if (wx === 'rain' || wx === 'snow') {
       if (!st.parts.length) for (i = 0; i < (wx === 'rain' ? 50 : 40); i++) st.parts.push({ x: Math.random() * W, y: Math.random() * H, v: .6 + Math.random() * .6 });
       st.parts.forEach(function (p) {
@@ -1912,6 +2604,13 @@ window.NB_LIBS = (function () {
       ' onerror="this.onerror=null;this.src=\'' + EMO_CDN + code + '.svg\'">';
   }
   function lapsTxt(n) { return Math.round(n).toLocaleString('ko-KR'); }
+  // 거점 그림: 도트 풍경화가 있으면 그것, 없으면 그림 글자(이모지). box에 그림 종류를 표시해 모양을 맞춘다
+  function setStopPic(box, name) {
+    var url = null;
+    try { url = window.NBPix && NBPix.stopURL(name); } catch (e) {}
+    box.classList.toggle('art', !!url);
+    box.innerHTML = url ? '<img class="stopimg" src="' + url + '" alt="' + esc(name) + ' 풍경" draggable="false">' : emo(placeEmoji(name));
+  }
 
   var lastBoard = null;
   function renderBoard(d) {
@@ -1956,7 +2655,7 @@ window.NB_LIBS = (function () {
     var prev = stops[ni - 1], next = stops[ni];
     var seg = Math.max(1e-9, next.laps - prev.laps);
     var pct = Math.max(0, Math.min(1, (pos - prev.laps) / seg)) * 100;
-    $('gPic').innerHTML = emo(placeEmoji(next.name));
+    setStopPic($('gPic'), next.name);
     $('gLbl').textContent = round > 0 ? (round + 1) + '번째 여행 · 다음 목표' : '다음 목표';
     $('gName').textContent = next.name;
     $('gLeft').innerHTML = '앞으로<b class="num">' + lapsTxt(Math.max(1, Math.ceil(next.laps - pos))) + '</b>바퀴!';
@@ -2014,7 +2713,7 @@ window.NB_LIBS = (function () {
   }
   function celebrate(name, nextName, left) {
     var box = $('celebrate');
-    $('celPic').innerHTML = emo(placeEmoji(name));
+    setStopPic($('celPic'), name);
     $('celName').textContent = name;
     $('celMsg').textContent = '오늘 우리 학교와 초코가 다 함께 달려서 ' + name + '에 도착했어요!';
     $('celNext').textContent = nextName ? '다음 목표: ' + nextName + '까지 ' + lapsTxt(left) + '바퀴' : '';
@@ -2794,17 +3493,51 @@ window.NB_LIBS = (function () {
           seaWaves.push({ x: qq * C, y: rr * C + 2, ph: Math.floor(rnd() * 8) });
         }
       }
-      for (r = 0; r < rows; r++) for (q = 0; q < cols; q++) {
-        var v = land[r][q]; if (!v) continue;
-        x.fillStyle = v === 2 ? (rnd() < .18 ? '#7DBB5E' : '#8CC96B') : '#DCE3D3';
-        x.fillRect(q * C, r * C, C, C);
-        // 바닷가: 진한 테두리
-        x.fillStyle = v === 2 ? '#2F6B33' : '#AEB8A4';
-        if (!isLand(r - 1, q)) x.fillRect(q * C, r * C, C, 1);
-        if (!isLand(r + 1, q)) x.fillRect(q * C, r * C + C - 1, C, 1);
-        if (!isLand(r, q - 1)) x.fillRect(q * C, r * C, 1, C);
-        if (!isLand(r, q + 1)) x.fillRect(q * C + C - 1, r * C, 1, C);
+      // 땅·바다를 점 하나하나 칠한다 (지도 칸보다 4배 촘촘): 들판 질감, 진한 초록 해안선 한 줄,
+      // 바다는 해안에서 멀수록 진한 파랑 + 해안의 하얀 파도 + 먼바다 반짝임. 산맥 표현은 넣지 않는다
+      var W = MAP.W, Hh = MAP.H, Pm = new NBPix.Pix(W, Hh), L = [], D = [], qx = [];
+      for (var py = 0; py < Hh; py++) {
+        L.push(new Uint8Array(W)); D.push(new Int16Array(W).fill(999));
+        for (var px = 0; px < W; px++) {
+          var lo = MAP.lon0 + (px + .5) / MAP.pxLon, la = MAP.lat1 - (py + .5) / MAP.pxLat;
+          var sv = inPoly(lo, la, SOUTH) || Math.pow((lo - JEJU[0]) / .38, 2) + Math.pow((la - JEJU[1]) / .16, 2) <= 1 ||
+            Math.pow((lo - ULLEUNG[0]) / .12, 2) + Math.pow((la - ULLEUNG[1]) / .09, 2) <= 1;
+          L[py][px] = sv ? 2 : inPoly(lo, la, NORTH) ? 1 : 0;
+          if (L[py][px]) { D[py][px] = 0; qx.push(px, py); }
+        }
       }
+      for (var qi = 0; qi < qx.length; qi += 2) {
+        var ax = qx[qi], ay = qx[qi + 1], dv = D[ay][ax] + 1;
+        if (ax + 1 < W && D[ay][ax + 1] > dv) { D[ay][ax + 1] = dv; qx.push(ax + 1, ay); }
+        if (ax > 0 && D[ay][ax - 1] > dv) { D[ay][ax - 1] = dv; qx.push(ax - 1, ay); }
+        if (ay + 1 < Hh && D[ay + 1][ax] > dv) { D[ay + 1][ax] = dv; qx.push(ax, ay + 1); }
+        if (ay > 0 && D[ay - 1][ax] > dv) { D[ay - 1][ax] = dv; qx.push(ax, ay - 1); }
+      }
+      var SEAC = ['#A6E0F2', '#8FD3EE', '#7CC6E6', '#6AB8DF', '#5CABD8'], SEAD = [2, 6, 14, 26, 99999];
+      var hsh = NBPix.hash, bayer = NBPix.bay, f2 = NBPix.fbm2;
+      for (py = 0; py < Hh; py++) for (px = 0; px < W; px++) {
+        var lv = L[py][px], col;
+        if (!lv) {
+          var dd = D[py][px];
+          if (dd === 1) col = hsh(px, py, 2) < .7 ? '#F2FAFD' : '#C6ECF8';
+          else {
+            var kk = 0; while (dd > SEAD[kk]) kk++;
+            var lo2 = kk ? SEAD[kk - 1] : 1, ff = (dd - lo2) / (SEAD[kk] - lo2);
+            col = kk + 1 < SEAC.length && ff > .6 && bayer(px, py) < (ff - .6) * 2.5 ? SEAC[kk + 1] : SEAC[kk];
+            if (dd > 4 && hsh(Math.floor(px / 3), py, 9) < .006) col = '#E6F6FC';
+          }
+        } else {
+          var edge = (py > 0 && !L[py - 1][px]) || (py + 1 < Hh && !L[py + 1][px]) || (px > 0 && !L[py][px - 1]) || (px + 1 < W && !L[py][px + 1]);
+          if (lv === 1) col = edge ? '#AEB8A4' : (f2(px / 6, py / 6, 3) > .55 ? '#D6DECE' : '#DFE6D8');
+          else if (edge) col = '#2F6B33';
+          else {
+            var nn = f2(px / 3, py / 3, 44), tx = hsh(px, py, 33);
+            col = nn > .66 ? '#C2DE8E' : tx < .12 ? '#85BD66' : tx > .94 ? '#ADD786' : '#9BCD76';
+          }
+        }
+        Pm.set(px, py, col);
+      }
+      x.drawImage(Pm.done(), 0, 0);
       // 휴전선 (점선)
       x.fillStyle = '#B5473A';
       for (var t = 0; t < 1; t += 0.012) {
@@ -2819,13 +3552,6 @@ window.NB_LIBS = (function () {
         x.fillStyle = '#2F6B33'; x.fillRect(dkx + b[0] - 1, dky + b[1] - 1, b[2] + 2, b[3] + 2);
         x.fillStyle = '#8CC96B'; x.fillRect(dkx + b[0], dky + b[1], b[2], b[3]);
         x.fillStyle = '#9C8A6A'; x.fillRect(dkx + b[0] + 1, dky + b[1], b[2] - 2, 1);
-      });
-      // 산 (작은 세모)
-      MOUNTAINS.concat([[ULLEUNG[0], ULLEUNG[1] + .02], [JEJU[0] - .08, JEJU[1] + .03]]).forEach(function (m) {
-        var p = mapXY(m[0], m[1]), mx = Math.round(p[0]), my = Math.round(p[1]);
-        x.fillStyle = '#4F7F45';
-        for (var h = 0; h < 4; h++) x.fillRect(mx - h, my - 3 + h, h * 2 + 1, 1);
-        x.fillStyle = '#F2F2EC'; x.fillRect(mx, my - 3, 1, 1);
       });
       return c;
     }
@@ -3428,7 +4154,7 @@ window.NB_LIBS = (function () {
     var prev = route[ni - 1], next = route[ni];
     var pct = Math.max(0, Math.min(1, (pos - prev.km) / Math.max(1e-9, next.km - prev.km))) * 100;
     $('stTotal').textContent = '누적 ' + fmtKm(total * 1000) + 'km';
-    $('stPic').innerHTML = emo(placeEmoji(next.name));
+    setStopPic($('stPic'), next.name);
     $('stLbl').textContent = round > 0 ? (round + 1) + '번째 여행 · 다음 목표' : '다음 목표';
     $('stName').textContent = next.name;
     $('stLeft').innerHTML = '앞으로<b class="num">' + Math.max(0.1, next.km - pos).toFixed(1) + '</b>km';
