@@ -2237,9 +2237,17 @@ window.NBPix = (function () {
     if (document.visibilityState === 'visible' && S.running) keepAwake();
   });
 
+  /* 학생 번호 정리: 새 번호는 입학연도-순번(27-001), 예전 카드는 NB07. 공백·전각 글자·여러 가지 줄표를 바로잡고 대문자로 */
+  function normId(text) {
+    return String(text == null ? '' : text)
+      .replace(/[\uFF01-\uFF5E]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); })
+      .replace(/[\u2010-\u2015\u2212\uFE63\u30FC]/g, '-')
+      .replace(/\s+/g, '')
+      .toUpperCase();
+  }
   function onScan(text) {
     if (S.camHidden) return;   // 결과 카드 4장으로 카메라 화면이 숨어 있는 동안엔 읽지 않는다
-    var id = String(text || '').trim().toUpperCase();
+    var id = normId(text);
     var now = Date.now();
     // 이 학생의 결과 카드가 아직 화면에 있으면 그 카드는 읽지 않는다. 카드가 사라지면 다시 읽는다
     var showing = Array.prototype.some.call(document.querySelectorAll('#fbStack .card'), function (c) { return c.getAttribute('data-id') === id && !c.classList.contains('out'); });
@@ -4962,6 +4970,7 @@ window.NBPix = (function () {
     apply();
   }
   function qrSvg(text) {
+    text = normId(text);   // QR에는 정리된 번호(27-001, NB07)만 넣는다
     var q = qrcode(0, 'M'); q.addData(text); q.make();
     var n = q.getModuleCount(), quiet = 2, size = n + quiet * 2, d = '';
     for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (q.isDark(r, c)) d += 'M' + (c + quiet) + ' ' + (r + quiet) + 'h1v1h-1z';
@@ -5342,7 +5351,7 @@ window.NBPix = (function () {
       chg: ppDates
         ? PERIOD_NAME[T.period] + ' 하루 평균이 ' + prevName + '보다 몇 바퀴 늘었는지(▲ 초록), 줄었는지(▼ 빨강) 보여 줘요. ' + prevName + '에 나온 날이 없으면 \'-\'예요.'
         : '\'' + PERIOD_NAME[T.period] + '\'에서는 비교할 앞 기간이 없어요. 오늘·이번 주·지난주·이번 달을 고르면 바로 앞 기간과 하루 평균을 비교해요.',
-      lap: '운동장 한 바퀴에 걸린 시간의 평균이에요. 연달아 찍은 두 체크 사이의 시간이라 줄 서서 기다린 시간도 들어가요. 강당 기록과 30초보다 짧거나 15분보다 긴 바퀴는 빼요.',
+      lap: '운동장 한 바퀴에 걸린 시간의 평균이에요.',
       best: '고른 기간에 운동장 한 바퀴를 가장 빨리 돈 시간이에요. 숫자에 마우스를 올리면 그 날짜가 보여요.'
     };
     var cols = [['no', '번호'], ['name', '이름'], ['grade', '학년'], ['rate', '출석률'],
@@ -5477,7 +5486,9 @@ window.NBPix = (function () {
       '오준서', '서하은', '신우진', '권나윤', '황지안', '안은우', '송다인', '류태오', '홍채원', '전이안', '고아린'];
     var grades = [1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6];
     var roster = names.map(function (n, i) {
-      return { id: 'NB' + ('0' + (i + 1)).slice(-2), name: n, grade: String(grades[i]) };
+      // 새 번호(27-001)와 예전 번호(NB21, NB22)를 섞어 두 형식이 함께 되는지 본다
+      var no = ('00' + (i + 1)).slice(-3);
+      return { id: i < 20 ? '27-' + no : 'NB' + ('0' + (i + 1)).slice(-2), name: n, grade: String(grades[i]) };
     });
     var settings = { trackM: 320, gymM: 320, dedupeSec: 60 };
     var route = DEFAULT_ROUTE
@@ -5528,9 +5539,9 @@ window.NBPix = (function () {
     }
     var notes = {};
     var recent = Object.keys(log.reduce(function (o, r) { o[r.date] = 1; return o; }, {})).sort().reverse();
-    notes.NB05 = {}; notes.NB05[recent[2]] = '병결';
-    notes.NB12 = {}; notes.NB12[recent[4]] = '체험학습';
-    notes.NB20 = {}; notes.NB20[recent[1]] = '출석(카드 분실)';
+    notes['27-005'] = {}; notes['27-005'][recent[2]] = '병결';
+    notes['27-012'] = {}; notes['27-012'][recent[4]] = '체험학습';
+    notes['27-020'] = {}; notes['27-020'][recent[1]] = '출석(카드 분실)';
 
     return {
       getInit: function () {
@@ -5638,7 +5649,7 @@ window.NBPix = (function () {
   }
   if (location.hash === '#checkdemo') setTimeout(runCheckDemo, 600);
 
-  /* 미리보기에서 카메라 없이 시험해 보기: 콘솔에서 nbTestScan('NB03') */
+  /* 미리보기에서 카메라 없이 시험해 보기: 콘솔에서 nbTestScan('27-003') 또는 nbTestScan('NB21') */
   window.nbTestScan = function (id) { onScan(id); };
 
   /* ── 오프라인 도우미 등록: 와이파이 없는 운동장에서도 화면이 다시 열리게 ── */
