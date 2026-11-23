@@ -308,6 +308,15 @@ img.stopimg { display: block; width: 100%; height: 100%; object-fit: cover; imag
 .goal-bar .runner { position: absolute; top: 50%; transform: translate(-39%, -90%); font-size: clamp(28px, 2.6vw, 46px); line-height: 1; }
 /* 강아지 그림은 모자·깃발 자리까지 여백이 있어서(31×19칸) 조금 넓게 */
 .dogimg { display: block; width: 5em; height: auto; image-rendering: pixelated; }   /* 초코를 크게 (예전 2.5em의 2배) */
+/* 다음 목표 블록의 초코 말풍선: 지도와 같은 말을 초코 옆(자리가 넓은 쪽)에 띄운다. 자리는 JS(placeGoalBubble)가 잡는다 */
+.goal-bar .gbub { position: absolute; z-index: 3; background: #fff; color: #1E1914; font-weight: 900; font-size: clamp(14px, 1.3vw, 22px);
+  line-height: 1.3; padding: .45em .8em; border-radius: .7em; border: 3px solid #1E1914; box-shadow: 0 3px 0 rgba(0,0,0,.2);
+  word-break: keep-all; width: max-content; white-space: normal; }
+.goal-bar .gbub[hidden] { display: none; }
+.goal-bar .gbub::after { content: ''; position: absolute; bottom: .5em; width: .7em; height: .7em; background: #fff;
+  border: 3px solid #1E1914; border-top: 0; border-right: 0; }
+.goal-bar .gbub.r::after { left: -.45em; transform: rotate(45deg); }        /* 초코가 왼쪽에 있으면 꼬리도 왼쪽 */
+.goal-bar .gbub.l::after { right: -.45em; transform: rotate(-135deg); }
 
 /* 전국 일주: 왼쪽 도트 지도 + 오른쪽 구간 게이지 (좁으면 위아래) */
 .trip { display: flex; gap: 16px; align-items: stretch; min-height: 0; }
@@ -522,6 +531,8 @@ body.tv.tv-scroll .gameboard { flex: none; }
   body.tv .goal-pic.art { font-size: inherit; border-width: .5vw; border-radius: 2vw; }
   body.tv .goal-bar .bar { height: 2.2vw; }
   body.tv .goal-bar .runner { font-size: 3.4vw; }
+  body.tv .goal-bar .gbub { font-size: 2.3vw; border-width: .35vw; }
+  body.tv .goal-bar .gbub::after { border-width: .35vw; }
   body.tv .goal-today { font-size: 2.05vw; }
   body.tv .gb-head { margin-bottom: 1vw; }
   body.tv .gb-head b { font-size: 3.2vw; }
@@ -912,7 +923,7 @@ tr:last-child td { border-bottom: 0; }
         <!-- 막대는 블록 아래에 좌우로 길게. 초코가 오른쪽 끝에 가면 그림 아래쪽을 조금 가려도 괜찮음 -->
         <div class="goal-bar">
           <span id="gFrom"></span>
-          <div class="bar"><i id="gFill" style="width:0"></i><span class="runner" id="gRunner" style="left:0" aria-hidden="true"><img class="dogimg" id="gDog" alt=""></span></div>
+          <div class="bar"><i id="gFill" style="width:0"></i><span class="runner" id="gRunner" style="left:0" aria-hidden="true"><img class="dogimg" id="gDog" alt=""></span><div class="gbub" id="gBub" hidden></div></div>
           <span id="gTo"></span>
         </div>
       </div>
@@ -1869,7 +1880,7 @@ window.NBPix = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '108';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '109';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -3582,7 +3593,30 @@ window.NBPix = (function () {
     var img = $('gDog'), step = dogFlipper(img, function () { return trip.running() ? 'run' : dogPose(); });
     img.src = dogURLs[0];
     setInterval(function () { if (S.view === 'tv' && !document.hidden) step(); }, 110);
+    setInterval(function () { if (S.view === 'tv' && !document.hidden) placeGoalBubble(); }, 500);
   })();
+  /* 막대 위 초코 옆에 말풍선: 초코 왼쪽·오른쪽 중 넓은 쪽, 높이는 초코 머리쯤. 말은 지도 말풍선과 같은 것을 같은 때에 바꾼다 */
+  function placeGoalBubble() {
+    var bub = $('gBub'), dog = $('gDog'); if (!bub || !dog) return;
+    var text = trip.talkNow && trip.talkNow();
+    if (!text || !dog.offsetWidth) { bub.hidden = true; return; }
+    if (bub.textContent !== text) bub.textContent = text;
+    bub.hidden = false;
+    var bar = bub.parentNode, box = bar.closest('.goal') || bar;
+    var br = bar.getBoundingClientRect(), dr = dog.getBoundingClientRect(), gr = box.getBoundingClientRect();
+    var pose = dog.dataset.pose || 'run', u = dr.width / (DOG_W + OUT_PAD.l + OUT_PAD.r);
+    var dogL = dr.left + OUT_PAD.l * u, dogR = dr.left + (OUT_PAD.l + DOG_W + (pose === 'lie' ? 14 : 2)) * u;   // 엎드리면 Z까지 비켜서
+    var gap = Math.max(6, u * 2), pad = Math.max(8, gr.width * .02);
+    var spaceL = dogL - gr.left - pad - gap, spaceR = gr.right - pad - dogR - gap, right = spaceR >= spaceL;
+    bub.style.maxWidth = Math.max(80, right ? spaceR : spaceL) + 'px';
+    bub.className = 'gbub ' + (right ? 'r' : 'l');
+    if (right) { bub.style.left = (dogR + gap - br.left) + 'px'; bub.style.right = 'auto'; }
+    else { bub.style.right = (br.right - dogL + gap) + 'px'; bub.style.left = 'auto'; }
+    // 꼬리(아래쪽)가 초코 머리 높이쯤 오게: 앉기·달리기는 그림 위쪽 40%, 엎드리면 60%
+    var headY = dr.top + dr.height * (pose === 'lie' ? .62 : .42);
+    bub.style.bottom = (br.bottom - headY - bub.offsetHeight * .35) + 'px';
+  }
+  window.addEventListener('resize', function () { if (S.view === 'tv') placeGoalBubble(); });
 
   /* ── 오늘 입을 착장 고르기 ──
      순서: 추모일(태극기) > 기념일 > 날씨 > 계절 기본. 기념일은 '그 주 등교일(월~금)'에 입는다.
@@ -4290,6 +4324,7 @@ window.NBPix = (function () {
       aspect: MAP.W / MAP.H,
       setWeather: setWeather,
       setTalk: function (list) { talk = list || []; },
+      talkNow: function () { return talk.length ? talk[Math.floor(Date.now() / TALK_MS) % talk.length] : ''; },   // 지도와 같은 말
       running: function () { return performance.now() - anim.t0 < anim.dur; },
       kick: kick
     };
