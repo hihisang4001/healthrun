@@ -665,6 +665,13 @@ table.t-tbl { min-width: 0; font-size: 14px; }
 .t-tbl th.asc::after { content: ' ▲'; opacity: 1; }
 .t-tbl th.desc::after { content: ' ▼'; opacity: 1; }
 .t-tbl tbody tr:hover { background: #F7F9F5; }
+/* 학생별 기록 제목 설명: ⓘ 표시 + 마우스를 올리면 뜨는 상자 (자리는 JS가 잡는다) */
+.t-tbl th .tip-i { display: inline-block; margin-left: 3px; font-size: .85em; font-weight: 700; color: #6B7A72; }
+.th-tip { position: fixed; z-index: 50; max-width: 300px; padding: 10px 13px; border-radius: 10px; background: #fff; color: var(--ink);
+  border: 1.5px solid #C9D3CC; box-shadow: 0 6px 18px rgba(0,0,0,.14); font-size: 14px; font-weight: 500; line-height: 1.55;
+  text-align: left; word-break: keep-all; pointer-events: none; }
+.th-tip[hidden] { display: none; }
+.th-tip b { display: block; margin-bottom: 3px; font-weight: 800; }
 .t-tbl .nb {
   border: 0; background: none; padding: 0; font: inherit; font-weight: 900; color: var(--ink);
   text-decoration: underline; text-decoration-color: #B8C4BC; text-underline-offset: 3px;
@@ -1051,7 +1058,7 @@ tr:last-child td { border-bottom: 0; }
       </section>
 
       <section class="t-card">
-        <h2>학생별 기록 <small>이름을 누르면 자세히(출석·결석) · 제목을 누르면 정렬 · 하루 평균 = 나온 날 한 번에 달린 바퀴 · 랩타임은 운동장 기록만</small></h2>
+        <h2>학생별 기록 <small>이름을 누르면 자세히(출석·결석) · 제목을 누르면 정렬</small></h2>
         <div class="t-filter" id="tFilter"></div>
         <div class="tablebox"><table class="t-tbl" id="tStudents"></table></div>
       </section>
@@ -1889,7 +1896,7 @@ window.NBPix = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '110';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '111';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -5142,6 +5149,26 @@ window.NBPix = (function () {
         var b = ev.target.closest('button[data-g]'); if (!b) return;
         T.grade = b.getAttribute('data-g'); renderPeriod();
       });
+      (function () {
+        var tbl = $('tStudents'), tip = document.createElement('div');
+        tip.className = 'th-tip'; tip.hidden = true; tip.setAttribute('role', 'tooltip');
+        document.body.appendChild(tip);
+        function hide() { tip.hidden = true; }
+        tbl.addEventListener('mouseover', function (ev) {
+          var th = ev.target.closest('th[data-tip]');
+          if (!th) { hide(); return; }
+          tip.innerHTML = '<b>' + esc(th.firstChild.textContent) + '</b>' + esc(th.getAttribute('data-tip'));
+          tip.hidden = false;
+          var r = th.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+          var x = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, innerWidth - w - 8));
+          var y = r.bottom + 6;
+          if (y + h > innerHeight - 8) y = Math.max(8, r.top - h - 6);   // 아래 자리가 없으면 위로
+          tip.style.left = x + 'px'; tip.style.top = y + 'px';
+        });
+        tbl.addEventListener('mouseleave', hide);
+        tbl.addEventListener('click', hide);
+        addEventListener('scroll', hide, true);
+      })();
       $('tStudents').addEventListener('click', function (ev) {
         var th = ev.target.closest('th[data-k]');
         if (th) { var k = th.getAttribute('data-k'); T.sort = { key: k, dir: T.sort.key === k ? -T.sort.dir : (k === 'no' || k === 'name' || k === 'grade' || k === 'lap' || k === 'best' ? 1 : -1) }; renderPeriod(); return; }
@@ -5308,11 +5335,23 @@ window.NBPix = (function () {
       }
     };
     list.sort(function (a, b) { var A = val(a), B = val(b); return (A < B ? -1 : A > B ? 1 : a.i - b.i) * dir; });
+    // 제목에 마우스를 올리면 뜨는 설명 (변화는 고른 기간에 맞춰)
+    var prevName = ppS ? ppS.label.replace('보다', '') : '';
+    var TIPS = {
+      day: '나온 날 하루에 달린 바퀴 수의 평균이에요. 결석한 날은 빼고 나눠요. (고른 기간에 달린 바퀴 ÷ 나온 날 수)',
+      chg: ppDates
+        ? PERIOD_NAME[T.period] + ' 하루 평균이 ' + prevName + '보다 몇 바퀴 늘었는지(▲ 초록), 줄었는지(▼ 빨강) 보여 줘요. ' + prevName + '에 나온 날이 없으면 \'-\'예요.'
+        : '\'' + PERIOD_NAME[T.period] + '\'에서는 비교할 앞 기간이 없어요. 오늘·이번 주·지난주·이번 달을 고르면 바로 앞 기간과 하루 평균을 비교해요.',
+      lap: '운동장 한 바퀴에 걸린 시간의 평균이에요. 연달아 찍은 두 체크 사이의 시간이라 줄 서서 기다린 시간도 들어가요. 강당 기록과 30초보다 짧거나 15분보다 긴 바퀴는 빼요.',
+      best: '고른 기간에 운동장 한 바퀴를 가장 빨리 돈 시간이에요. 숫자에 마우스를 올리면 그 날짜가 보여요.'
+    };
     var cols = [['no', '번호'], ['name', '이름'], ['grade', '학년'], ['rate', '출석률'],
-      ['laps', '바퀴 (거리)', 'r'], ['day', '하루 평균', 'r'], ['chg', ppDates ? ppS.label.replace('보다', '') + ' 대비' : '변화', 'r'], ['lap', '평균 랩타임', 'r'], ['best', '최고 랩타임', 'r'], ['last', '마지막 참여', 'r']];
+      ['laps', '바퀴 (거리)', 'r'], ['day', '하루 평균', 'r'], ['chg', ppDates ? prevName + ' 대비' : '변화', 'r'], ['lap', '평균 랩타임', 'r'], ['best', '최고 랩타임', 'r'], ['last', '마지막 참여', 'r']];
     // 출석·결석은 학생 상세에서 (표에는 출석률만)
     $('tStudents').innerHTML = '<thead><tr>' + cols.map(function (c) {
-      return '<th class="sort' + (c[2] ? ' r' : '') + (key === c[0] ? (dir > 0 ? ' asc' : ' desc') : '') + '" data-k="' + c[0] + '">' + c[1] + '</th>';
+      var tip = TIPS[c[0]];
+      return '<th class="sort' + (c[2] ? ' r' : '') + (key === c[0] ? (dir > 0 ? ' asc' : ' desc') : '') + '" data-k="' + c[0] + '"' +
+        (tip ? ' data-tip="' + esc(tip) + '"' : '') + '>' + c[1] + (tip ? '<span class="tip-i" aria-hidden="true">ⓘ</span>' : '') + '</th>';
     }).join('') + '</tr></thead><tbody>' + list.map(function (r) {
       var s = r.s;
       return '<tr><td class="num">' + esc(r.p.id) + '</td><td><button type="button" class="nb" data-id="' + esc(r.p.id) + '">' + esc(r.p.name) + '</button></td>' +
