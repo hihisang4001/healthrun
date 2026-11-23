@@ -166,6 +166,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--turf); outline-
 .run.cb .run-cam::before { content: '카드를 이 창에 보여 주세요 ↓'; font-weight: 900; color: var(--ink-soft); font-size: clamp(14px, 2.2vh, 20px); margin-bottom: 6px; }
 .run.cb .fb:not(.idle):not(.card) { grid-row: 1 / 4; grid-column: 1; z-index: 5; margin: 12px 16px; }
 .fb .laps { font-family: var(--display); font-size: clamp(26px, 7vw, 56px); margin-top: 10px; }
+.fb .laps .conv { display: block; font-family: var(--body); font-weight: 800; font-size: .42em; opacity: .92; margin-top: 2px; word-break: keep-all; }
+.fb .rule .rt2 { font-size: clamp(14px, 3vw, 24px); font-weight: 800; opacity: .92; margin-top: 2px; word-break: keep-all; }
 .fb .lapt { font-size: clamp(20px, 5vw, 38px); font-weight: 900; margin-top: 6px; }
 /* 결과 카드 쌓기 (카메라 위쪽을 덮음) */
 .fbstack { position: absolute; top: 0; left: 0; right: 0; height: 0; z-index: 6; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; padding: 0 16px; box-sizing: border-box; pointer-events: none; transition: height .35s ease; }
@@ -194,6 +196,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--turf); outline-
 .fbstack.half .card.warn .sub, .fbstack.half .card.bad .sub { font-size: clamp(18px, 5vw, 30px); margin-top: 6px; }
 .fbstack.half .card.kickoff .rule { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
 .fbstack.half .card.kickoff .rule .cyc { margin-top: 0; }
+.fbstack.half .card.kickoff .rule .rt2 { order: 3; flex-basis: 100%; margin-top: -4px; font-size: clamp(13px, 2.6vw, 20px); }   /* 강당 환산 줄은 체크 주기 줄 아래로 */
 .fbstack.half .card.kickoff .rule .cyc .qr { width: clamp(28px, 5.2vw, 44px); height: clamp(28px, 5.2vw, 44px); padding: 1px; }
 .fbstack.half .card.kickoff .rule .cyc .ar { font-size: clamp(16px, 3vw, 26px); }
 /* 쌓여도 글씨는 한 장일 때 크기: 바퀴 카드(이름·오늘 ○바퀴째), 출발 카드(이름·출발 문구·체크 주기 문구).
@@ -431,6 +434,9 @@ img.emo { width: 1em; height: 1em; display: inline-block; vertical-align: -0.12e
 .kmcard .a small { font-family: var(--body); font-weight: 900; font-size: .45em; color: #fff; margin-left: 4px; }
 .side-card { background: var(--card); border: 1px solid var(--rule); border-radius: 20px; padding: 14px 16px; }
 .side-card h3 { margin: 0 0 10px; font-family: var(--display); font-weight: 400; font-size: clamp(19px, 1.6vw, 28px); }
+.side-card .gymnote { margin: -4px 0 10px; padding: .35em .7em; border-radius: 10px; background: #EBE3F8; color: #5B3A9A;
+  font-weight: 800; font-size: clamp(13px, 1.1vw, 20px); line-height: 1.35; word-break: keep-all; }
+.side-card .gymnote[hidden] { display: none; }
 .side-card h3 small { font-family: var(--body); font-size: .55em; color: var(--ink-soft); font-weight: 700; margin-left: 6px; }
 .gbars { display: grid; gap: 8px; }
 .gbar {
@@ -510,6 +516,7 @@ body.tv.tv-scroll .gameboard { flex: none; }
   body.tv .kmcard .a { font-size: 7.4vw; }
   body.tv .side-card { padding: 1.8vw 2.4vw; border-radius: 2.8vw; }
   body.tv .side-card h3 { font-size: 3.4vw; margin-bottom: 1.2vw; }
+  body.tv .side-card .gymnote { font-size: 2vw; margin: -.4vw 0 1.2vw; border-radius: 1vw; }
   body.tv .gbars { gap: .9vw; }
   body.tv .gbar { font-size: 2.6vw; gap: 1.2vw; }
   body.tv .toplist { gap: calc(1vw * var(--tk, 1)); }
@@ -948,6 +955,8 @@ tr:last-child td { border-bottom: 0; }
         </div>
         <div class="side-card">
           <h3>학년별 <small>이번 주 달린 바퀴</small></h3>
+          <!-- 이번 주에 강당 기록이 있을 때만: 바퀴는 운동장 기준 (태블릿은 강당에서 실제로 돈 바퀴를 보여 줘서 숫자가 달라 보인다) -->
+          <div class="gymnote" id="sGymNote" hidden>바퀴는 운동장 기준이에요<br>강당 5바퀴 = 운동장 1바퀴</div>
           <div class="gbars" id="sGrades"></div>
         </div>
         <div class="side-card top-card">
@@ -1880,7 +1889,7 @@ window.NBPix = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '109';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '110';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -2267,7 +2276,7 @@ window.NBPix = (function () {
     var dots = '', nDot = gym ? 5 : 1;
     for (var di = 0; di < nDot; di++) dots += '<i></i>';
     feedback(gym ? 'kickoff gym' : 'kickoff track', p.name, '출발! 오늘도 신나게 달려봐요!', '', {
-      rule: '<div class="rt">' + (gym ? '강당은 <b>5바퀴</b>마다 찍어요' : '<b>한 바퀴</b> 돌 때마다 찍어요') + '</div>' +
+      rule: '<div class="rt">' + (gym ? '강당은 <b>5바퀴</b>마다 찍어요' : '<b>한 바퀴</b> 돌 때마다 찍어요') + '</div>' + (gym ? '<div class="rt2">다섯 바퀴 = 운동장 한 바퀴</div>' : '') +
         '<div class="cyc">' + dots + '<span class="ar">→</span><span class="qr">' + qrIcon() + '</span></div>'
     });
       beep('ok');
@@ -2284,7 +2293,9 @@ window.NBPix = (function () {
       : lapsToday % 2 ? '오늘 네가 나를 ' + distTxt(t.m) + ' 데려다 줬어!'
       : CHEERS[Math.floor(Math.random() * CHEERS.length)];
     saveSnap();
-    feedback(gym ? 'ok cho gym' : 'ok cho', p.name, '', '', { laps: '오늘 ' + lapsToday + '바퀴째', choco: talk });   // 바퀴 카드: 운동장 초록, 강당 보라
+    // 오늘 강당에서 찍은 게 있으면 운동장 기준도 작게 (TV 현황판은 운동장 기준이라 숫자가 달라 보여서)
+    var conv = t.gn > 0 ? '운동장으로 치면 ' + (t.tn + t.gn) + '바퀴' : '';
+    feedback(gym ? 'ok cho gym' : 'ok cho', p.name, '', '', { laps: '오늘 ' + lapsToday + '바퀴째', conv: conv, choco: talk });   // 바퀴 카드: 운동장 초록, 강당 보라
     beep(stop ? 'win' : 'ok');    renderToday(gradeOf(p));   // 찍은 학생의 학년 칸이 잠깐 커진다
   }
 
@@ -2390,7 +2401,7 @@ window.NBPix = (function () {
     if (S.scanId) { card.setAttribute('data-id', S.scanId); S.scanId = ''; }
     var h = '<div class="big">' + esc(big) + '</div>';
     if (sub) h += '<div class="sub">' + esc(sub) + '</div>';
-    if (info.laps) h += '<div class="laps">' + esc(info.laps) + '</div>';
+    if (info.laps) h += '<div class="laps">' + esc(info.laps) + (info.conv ? '<small class="conv">' + esc(info.conv) + '</small>' : '') + '</div>';
     if (info.rule) h += '<div class="rule">' + info.rule + '</div>';
     if (badge) h += '<div class="badge">' + esc(badge) + '</div>';
     // 바퀴 카드: 초코는 둥근 창문 안 흙길 산책로를 달린다 (풍경·날씨는 창문 안에만, 말풍선은 창문 위)
@@ -2688,6 +2699,8 @@ window.NBPix = (function () {
     $('sUpdated').textContent = (d.updated || '') + ' 기준 · 운영 ' + (d.sessions || 0) + '일째 · 전체 ' + fmtKm(total) + 'km · 화면 ' + APP_VER;
 
     // 한 부분이 오류가 나도 나머지는 그려지게 (오류 내용은 화면 아래에)
+    // 강당 안내: 이번 주 강당 체크가 있으면 (예전 서버라 값이 없으면 늘 보여 준다)
+    $('sGymNote').hidden = d.weekGym != null && !(d.weekGym > 0);
     try { renderSide(roster, per, trackM); } catch (e) { window.nbShowErr('학년·친구', e); }
     try { renderPraise(d, roster); } catch (e) { window.nbShowErr('칭찬 블록', e); }
     try { renderJourney(route, total / trackM, today / trackM, trackM); } catch (e) { window.nbShowErr('전국 일주', e); }
@@ -5509,11 +5522,12 @@ window.NBPix = (function () {
         var now = new Date(), td = dstr(now);
         var dow = (now.getDay() + 6) % 7;
         var ws = dstr(new Date(now.getTime() - dow * 86400000));
-        var per = {}, dates = {};
+        var per = {}, dates = {}, weekGym = 0;
         log.forEach(function (r) {
           var s = per[r.id] || (per[r.id] = { m: 0, n: 0, weekM: 0, todayM: 0 });
           s.m += r.m; s.n++;
           if (r.date >= ws) s.weekM += r.m;
+          if (r.date >= ws && r.gym) weekGym++;
           if (r.date === td) s.todayM += r.m;
           dates[r.date] = 1;
         });
@@ -5531,7 +5545,7 @@ window.NBPix = (function () {
         var faster = [];
         Object.keys(best).forEach(function (id) { var b = best[id]; if (b.last && b.now && b.now < b.last - 0.5 && b.now >= b.last / 2) faster.push({ id: id, last: Math.round(b.last), now: Math.round(b.now) }); });
         faster.sort(function (a, b) { return (b.last - b.now) - (a.last - a.now); });
-        return { url: '', roster: roster, route: route, settings: settings, per: per, faster: faster, praise: praise_(log, ws, td, settings.trackM), sessions: Object.keys(dates).length,
+        return { url: '', roster: roster, route: route, settings: settings, per: per, faster: faster, weekGym: weekGym, praise: praise_(log, ws, td, settings.trackM), sessions: Object.keys(dates).length,
           weekStart: ws, updated: (now.getMonth() + 1) + '월 ' + now.getDate() + '일 ' + ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2) };
       },
       getRoster: function () { return { url: '', roster: roster }; },
@@ -5559,11 +5573,11 @@ window.NBPix = (function () {
   window.nbKickTest = function (name, gym) {
     var dots = ''; for (var di = 0; di < (gym ? 5 : 1); di++) dots += '<i></i>';
     feedback(gym ? 'kickoff gym' : 'kickoff track', name || '아스르베키', '출발! 오늘도 신나게 달려봐요!', '', {
-      rule: '<div class="rt">' + (gym ? '강당은 <b>5바퀴</b>마다 찍어요' : '<b>한 바퀴</b> 돌 때마다 찍어요') + '</div>' +
+      rule: '<div class="rt">' + (gym ? '강당은 <b>5바퀴</b>마다 찍어요' : '<b>한 바퀴</b> 돌 때마다 찍어요') + '</div>' + (gym ? '<div class="rt2">다섯 바퀴 = 운동장 한 바퀴</div>' : '') +
         '<div class="cyc">' + dots + '<span class="ar">→</span><span class="qr">' + qrIcon() + '</span></div>'
     });
   };
-  window.nbCardTest = function (name) { feedback('ok cho', name || '아스르베키', '', '', { laps: '오늘 3바퀴째', choco: '조금만 더 힘내자!' }); };   // 시험: 카드 한 장 (기록 안 함)
+  window.nbCardTest = function (name, gym) { feedback(gym ? 'ok cho gym' : 'ok cho', name || '아스르베키', '', '', gym ? { laps: '오늘 20바퀴째', conv: '운동장으로 치면 4바퀴', choco: '조금만 더 힘내자!' } : { laps: '오늘 3바퀴째', choco: '조금만 더 힘내자!' }); };   // 시험: 카드 한 장 (기록 안 함)
   function runCheckDemo() {
     if (S.sceneWx == null) S.sceneWx = '';
     ['startPanel', 'topbar', 'demoNote'].forEach(function (i) { if ($(i)) $(i).hidden = true; });
