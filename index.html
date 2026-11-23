@@ -1869,7 +1869,7 @@ window.NBPix = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '107';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '108';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -2868,11 +2868,56 @@ window.NBPix = (function () {
     for (var i = 0; i < PLACE_TALK.length; i++) if (name.indexOf(PLACE_TALK[i][0]) >= 0) return PLACE_TALK[i][1];
     return josaRo(name) + ' 빨리 가 보고 싶어!';
   }
+  /* ── 초코가 쉬는 때 (TV·태블릿 시계 기준) ──
+     월·수·금: 낮 12시 전에는 달리고, 12시부터 앉아서, 오후 2시부터 엎드려 존다.
+     화·목·주말, 그리고 월·수·금인데 12시까지 기록이 없는 날(공휴일·방학)은 엎드려 쉰다.
+     쉬는 중에 새 바퀴가 들어오면 지도에서 그만큼 달려 간 뒤 다시 쉰다 */
+  var clockTest = null;   // 미리보기 시험용 시각 (nbRestTest)
+  function nowDate() { return clockTest ? new Date(clockTest) : new Date(); }
+  function isActDay(d) { var w = d.getDay(); return w === 1 || w === 3 || w === 5; }
+  function ranToday() {
+    if (journey && journey.today > 0) return true;
+    var t = S.todayDate === todayStr() ? S.today || {} : {};
+    return Object.keys(t).some(function (k) { return t[k] && (t[k].start || t[k].n); });
+  }
+  // kind: run 달리기 / pm 오후(앉기) / nap 오후 2시 넘어 졸기 / off 쉬는 날(엎드리기)
+  function restMode() {
+    var d = nowDate(), h = d.getHours();
+    if (!isActDay(d)) return { pose: 'lie', kind: 'off' };
+    if (h < 12) return { pose: 'run', kind: 'run' };
+    if (!ranToday()) return { pose: 'lie', kind: 'off' };
+    return h < 14 ? { pose: 'sit', kind: 'pm' } : { pose: 'lie', kind: 'nap' };
+  }
+  function dogPose() { return restMode().pose; }
+  function nextActName(d) {
+    var x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    for (var i = 0; i < 7; i++) { x.setDate(x.getDate() + 1); if (isActDay(x)) return '일월화수목금토'.charAt(x.getDay()) + '요일'; }
+    return '다음 달리기 날';
+  }
+  // 쉬는 동안의 말 (기념일·날씨 말은 넣지 않는다)
+  function restTalk(kind, next, left, today) {
+    var nd = nextActName(nowDate());
+    var off = ['오늘은 쉬는 날! ' + nd + '에 또 달리자!', next.name + '까지 ' + lapsTxt(left) + '바퀴 남았어. 푹 쉬고 또 가자!', '쉬는 날엔 잘 먹고 푹 자기! 멍!'];
+    var zz = ['쿨쿨… 꿈에서도 달리는 중…'].concat(kind === 'nap' ? ['하암~ 오늘 많이 달려서 졸려…'] : [], [nd + '에 또 만나자… 쿨쿨']);
+    if (kind === 'pm') return [today > 0 ? '아침에 ' + lapsTxt(today) + '바퀴 달려 줘서 고마워! 이제 쉴게~' : '아침에 같이 달려 줘서 고마워! 이제 쉴게~',
+      '오늘은 여기까지! ' + nd + '에 또 달리자!', '헥헥… 잘 달렸다! 꼬리 흔들며 쉬는 중~'];
+    if (kind === 'nap') return zz;
+    var out = [];   // 쉬는 날: 쉬는 날 말과 졸린 말을 번갈아
+    for (var i = 0; i < Math.max(off.length, zz.length); i++) { if (off[i]) out.push(off[i]); if (zz[i]) out.push(zz[i]); }
+    return out;
+  }
+  var lastRestKind = null;
+  setInterval(function () { if (restMode().kind !== lastRestKind) updateTalk(); }, 30000);   // 12시·2시가 되면 말을 바꾼다
+  window.nbRestTest = function (when) { clockTest = when || null; updateTalk(); return restMode(); };   // 예: nbRestTest('2026-11-23T13:00')
+
   function updateTalk() {
     if (!journey || !journey.stops) return;
     var st = journey.stops, ni = journey.nextIdx, next = st[ni], prev = st[ni - 1];
     if (!next) return;
     var left = Math.max(1, Math.ceil(next.laps - journey.pos)), today = Math.round(journey.today || 0);
+    var rm = restMode();
+    lastRestKind = rm.kind;
+    if (rm.kind !== 'run') { trip.setTalk(restTalk(rm.kind, next, left, today)); return; }
     var list = [
       placeTalk(next.name),
       next.name + '까지 ' + lapsTxt(left) + '바퀴 남았어!',
@@ -2987,6 +3032,145 @@ window.NBPix = (function () {
       for (var c = 0; c < 40; c++) out += c < tr.length && r.charAt(c) === '.' && tr.charAt(c) !== '.' ? tr.charAt(c) : r.charAt(c) || '.';
       return out;
     });
+  }
+
+  /* 쉬는 초코: 앉기(꼬리 내림↔듦, 가슴 숨쉬기)와 엎드려 졸기(눈 감고 배 오르내림) 각 2장.
+     앉기는 머리가 달리는 그림과 같은 자리라 모자·안경이 그대로 맞고, 엎드리기는 머리가 LIE_DY칸 아래에 있다 */
+  var SIT2 = [
+    [
+      '.........................kkkkkkk........',
+      '.......................kkhhhhllkk.......',
+      '.....................kkhhlllbbbbbk......',
+      '....................kddddkllbbbbbbk.....',
+      '...................kdDDddklbbbbbbbbk....',
+      '...................kdDDddkbbbbweebbbk...',
+      '...................kdDDddkbbbbeeebbbbkk.',
+      '...................kdDDddkbbbbbbbllllnnk',
+      '...................kdDDddkbbbbrrbllllnnk',
+      '...................kdDDddkbbbbbbbkkkkkk.',
+      '...................kdDDddksbbbbbbkppk...',
+      '....................kDdkbbbbbbbbkkPk....',
+      '.....................kkbbbbbbbbblkk.....',
+      '......................kbbbbbbbbblk......',
+      '.....................khbbbbbbbbbblk.....',
+      '.....................klbbbbbbbbbblk.....',
+      '..................kkkkbbbbbbbbbbblk.....',
+      '..............kkkkhhhkbbbbbbbbbbblk.....',
+      '.............khhhhlllhbbbbbbbbbsslk.....',
+      '............khlllssssssssbbbbbbsbbk.....',
+      '...........khlbbsbbbbbbbsskbbbksssk.....',
+      '..........kblbbsbbbbbbbbbskbbbksssk.....',
+      '.....kkk..kbbbbbbbbbbbbbbskbbbkbssk.....',
+      '....kbbbkkkbbbbbbbbbbbbbbbkbbbksssk.....',
+      '.....kbbbbbkbbbbbbbbbbbbbbkbbbksssk.....',
+      '......kkbbbbkbbbbbbbbbbbbbkbbbkssskk....',
+      '........kkkk.kDbbbDbbbbbDkkDDDDDDDDDk...',
+      '..............kkkkkkkkkkk..kkkkkkkkk....'
+    ],
+    [
+      '.........................kkkkkkk........',
+      '.......................kkhhhhllkk.......',
+      '.....................kkhhlllbbbbbk......',
+      '....................kddddkllbbbbbbk.....',
+      '...................kdDDddklbbbbbbbbk....',
+      '...................kdDDddkbbbbweebbbk...',
+      '...................kdDDddkbbbbeeebbbbkk.',
+      '...................kdDDddkbbbbbbbllllnnk',
+      '...................kdDDddkbbbbrrbllllnnk',
+      '...................kdDDddkbbbbbbbkkkkkk.',
+      '...................kdDDddksbbbbbbkppk...',
+      '....................kDdkbbbbbbbbkkPk....',
+      '.....................kkbbbbbbbbblkk.....',
+      '.....................kbbbbbbbbbbblk.....',
+      '.....................kbbbbbbbbbbblk.....',
+      '....................khbbbbbbbbbbbblk....',
+      '......kk..........kkklbbbbbbbbbbbblk....',
+      '.....kbbk.....kkkkhhhbbbbbbbbbbbbblk....',
+      '......kbbk...khhhhlllbbbbbbbbbbssblk....',
+      '......kbbk..khlllssssssssbbbbbbsbbk.....',
+      '.......kbbkkhlbbsbbbbbbbsskbbbksssk.....',
+      '........kbbblbbsbbbbbbbbbskbbbksssk.....',
+      '.........kbbbbbbbbbbbbbbbskbbbkbssk.....',
+      '..........kbbbbbbbbbbbbbbbkbbbksssk.....',
+      '...........kbbbbbbbbbbbbbbkbbbksssk.....',
+      '............kbbbbbbbbbbbbbkbbbkssskk....',
+      '.............kDbbbDbbbbbDkkDDDDDDDDDk...',
+      '..............kkkkkkkkkkk..kkkkkkkkk....'
+    ]
+  ];
+  var LIE2 = [
+    [
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '.........................kkkkkkk........',
+      '.......................kkhhhhllkk.......',
+      '.....................kkhhlllbbbbbk......',
+      '....................kddddkllbbbbbbk.....',
+      '............kkkkkkkkdDDddklbbbbbbbbk....',
+      '........kkkkhhhhhhhkdDDddkbbbkbbkbbbk...',
+      '......kkhhhhlllllllkdDDddkbbbbkkbbbbbkk.',
+      '.....khhllllbbbbbbbkdDDddkbbbbbbbllllnnk',
+      '....khllbbbbbbbbbbbkdDDddkbbbbrrbllllnnk',
+      '....klbbbbbbbbbbbbbkdDDddkbbbbbbbkkkkkk.',
+      '.kk.kbbbbbbbbbbbbbbkdDDddksbbbbbbbbbbbk.',
+      'kbbkkbbbbbbbbbbbbbbbkDdkbbbllllllllllbk.',
+      '.kbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbk.',
+      '..kkkkkkbbbbbbbbbbbbbbbkkkDDDDDDDDDDDDDk',
+      '........kkkkkkkkkkkkkkk...kkkkkkkkkkkkk.'
+    ],
+    [
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '........................................',
+      '.........................kkkkkkk........',
+      '.......................kkhhhhllkk.......',
+      '.....................kkhhlllbbbbbk......',
+      '............kkkkkkk.kddddkllbbbbbbk.....',
+      '........kkkkhhhhhhhkdDDddklbbbbbbbbk....',
+      '......kkhhhhlllllllkdDDddkbbbkbbkbbbk...',
+      '.....khhllllbbbbbbbkdDDddkbbbbkkbbbbbkk.',
+      '..kkkhllbbbbbbbbbbbkdDDddkbbbbbbbllllnnk',
+      '.kbhklbbbbbbbbbbbbbkdDDddkbbbbrrbllllnnk',
+      '.kblkbbbbbbbbbbbbbbkdDDddkbbbbbbbkkkkkk.',
+      '..kbhbbbbbbbbbbbbbbkdDDddksbbbbbbbbbbbk.',
+      '...klbbbbbbbbbbbbbbbkDdkbbbllllllllllbk.',
+      '....kkbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbk.',
+      '......kkbbbbbbbbbbbbbbbkkkDDDDDDDDDDDDDk',
+      '........kkkkkkkkkkkkkkk...kkkkkkkkkkkkk.'
+    ]
+  ];
+  var LIE_DY = 13;
+  function poseRows(pose, f) {
+    if (pose === 'sit') return SIT2[f % 2];
+    if (pose === 'lie') return LIE2[f % 2];
+    return dog2Rows(f);
+  }
+  // 이 칸이 머리인지 (옷 색 바꾸기가 머리까지 칠하지 않게)
+  function poseHead(pose, x, y) {
+    if (pose === 'sit') return y <= 11 && x >= 19;
+    if (pose === 'lie') { var r = BODY2[y - LIE_DY]; return y - LIE_DY <= 11 && x >= 19 && !!r && (y - LIE_DY === 11 ? x <= 23 : r.charAt(x) !== '.'); }
+    return false;
   }
 
   // 도트 그림 도우미
@@ -3146,22 +3330,23 @@ window.NBPix = (function () {
   // 새 몸에 맞춰 예전 소품 자리를 조금 옮김 (새 칸 기준 [x, y])
   var OVER_SHIFT = { backpack: { 0: [4, 5], 1: [4, 5] } };
   // 목도리: 목을 한 바퀴 감고, 끝은 뒤로 휘날린다 (강아지 칸 기준)
-  function paintScarf(g, f, R, r) {
-    var P = { k: '#1E1914', R: R, r: r, W: '#FFFFFF' };
-    paintGrid(g, 12 + OUT_PAD.l, 12 + OUT_PAD.t, f % 2 ? ['......kk.', '...kkkRRk', 'kkkRRRRrk', 'kRRRrrkk.', '.kWkWkk..', '..k.k....']
+  function paintScarf(g, f, R, r, pose) {
+    var P = { k: '#1E1914', R: R, r: r, W: '#FFFFFF' }, hy = pose === 'lie' ? LIE_DY : 0;
+    if (!pose || pose === 'run') paintGrid(g, 12 + OUT_PAD.l, 12 + OUT_PAD.t, f % 2 ? ['......kk.', '...kkkRRk', 'kkkRRRRrk', 'kRRRrrkk.', '.kWkWkk..', '..k.k....']
       : ['......kk.', '...kkkRRk', 'kkkRRRRrk', 'kRRRrrkk.', 'kWkWkk...', '.k.k.....'], P);
-    paintGrid(g, 19 + OUT_PAD.l, 9 + OUT_PAD.t, ['..kkkk.........', '.kRRRRkkkk.....', 'kRWRRWRRRRkkk..', 'kRRWRRWRRWRRRk.', '.krRRrRRrRRrRk.', '..kkkkkkkkkkkk.'], P);
+    paintGrid(g, 19 + OUT_PAD.l, 9 + hy + OUT_PAD.t, ['..kkkk.........', '.kRRRRkkkk.....', 'kRWRRWRRRRkkk..', 'kRRWRRWRRWRRRk.', '.krRRrRRrRRrRk.', '..kkkkkkkkkkkk.'], P);
   }
   // 소품 위에 더하는 잔무늬 (강아지 칸 기준 = 여백 뺀 좌표)
   var DETAIL = {
-    sejong: function (g) {
+    sejong: function (g, f, pose) {
+      if (pose === 'sit' || pose === 'lie') { bodyBand(g, pose, pose === 'sit' ? 20 : 22, ['#F2C12E', '#B8860B']); return; }
       paintGrid(g, 8 + OUT_PAD.l, 18 + OUT_PAD.t, ['GgGGgGGgGGgGGgGGgGGg', 'gGGgGGgGGgGGgGGgGGgG'], { G: '#F2C12E', g: '#B8860B' });   // 허리띠(서대)
     },
-    raincoat: function (g) {
+    raincoat: function (g, f, pose) {
       // 머리 뒤·위를 덮는 노란 후드 + 얼굴 앞의 투명창, 몸을 덮는 망토 (장화 없음)
       var P = { k: '#1E1914', Y: '#FFD23F', y: '#E0A800', h: '#FFE77A', v: tint('#E3F6FC', .55), V: '#FFFFFF', U: '#FFF6C8' };
-      var X = OUT_PAD.l, Y = OUT_PAD.t;
-      paintGrid(g, 17 + X, -2 + Y, [
+      var X = OUT_PAD.l, Y = OUT_PAD.t, run = !pose || pose === 'run';
+      paintGrid(g, 17 + X, -2 + Y + (pose === 'lie' ? LIE_DY : 0), [
         '.......kkkkkkk....',
         '.....kkhhhhhhvvk..',
         '....khhYYYYYYvVvk.',
@@ -3176,16 +3361,17 @@ window.NBPix = (function () {
         '..kyyYYYYYvk......',
         '..kyyYYYYYk.......',
         '...kyYYYYk........'], P);
+      if (!run) return;   // 앉거나 엎드리면 망토 단·빗방울은 없이 (몸은 노랗게 칠해 둠)
       paintGrid(g, 9 + X, 21 + Y, ['yhyhyhyhyhyhyhyhyhyhyh', 'kkkkkkkkkkkkkkkkkkkkkk'], P);   // 망토 단
       paintGrid(g, 8 + X, 21 + Y, ['k', 'k'], P); paintGrid(g, 31 + X, 21 + Y, ['k', 'k'], P);
       paintGrid(g, 12 + X, 15 + Y, ['U', '.', '.', '.', 'U'], P);                 // 맺힌 빗방울
       paintGrid(g, 20 + X, 17 + Y, ['U'], P);
     },
-    snowhat: function (g, f) { paintScarf(g, f, '#D2412E', '#9E2A20'); },
-    winter: function (g, f) { paintScarf(g, f, '#D2412E', '#9E2A20'); },
-    earmuff: function (g, f) {
-      var X = OUT_PAD.l, Y = OUT_PAD.t, P = { k: '#1E1914', g: '#6B6B6B', P: '#FF8FB1', p: '#FFC7DA', q: '#E46F96' };
-      paintScarf(g, f, '#2D6CC8', '#1F4E99');
+    snowhat: function (g, f, pose) { paintScarf(g, f, '#D2412E', '#9E2A20', pose); },
+    winter: function (g, f, pose) { paintScarf(g, f, '#D2412E', '#9E2A20', pose); },
+    earmuff: function (g, f, pose) {
+      var X = OUT_PAD.l, Y = OUT_PAD.t + (pose === 'lie' ? LIE_DY : 0), P = { k: '#1E1914', g: '#6B6B6B', P: '#FF8FB1', p: '#FFC7DA', q: '#E46F96' };
+      paintScarf(g, f, '#2D6CC8', '#1F4E99', pose);
       paintGrid(g, 23 + X, -2 + Y, ['kkkkkkkkk', 'gggggggggk'], P);   // 머리띠
       paintGrid(g, 22 + X, -1 + Y, ['k'], P);
       paintGrid(g, 18 + X, -1 + Y, ['..kkkk..', '.kPpPPk.', 'kPPpPPqk', 'kPpPPpqk', 'kPPPpPqk', 'kPpPPqqk', '.kPqqqk.', '..kkkk..'], P);   // 털 귀마개
@@ -3203,16 +3389,52 @@ window.NBPix = (function () {
     if (m.d && !o.D) o.D = shiftCol(m.d, -.2);
     return o;
   }
-  function outfitGrid(frame, key) {
+  // 앉기·엎드리기에서 몸에 다는 소품(배지·가방·꽃 등)을 옮기는 칸 [x, y]. 머리 소품은 머리를 따라간다
+  var BODY_PROPS = { sejong: { 1: 1, 2: 'skip' }, hanbok: { 0: 1 }, backpack: { 0: 1, 1: 1 }, earth: { 0: 1 }, recycle: { 0: 1 }, carnation: { 0: 1 } };
+  var POSE_SHIFT = {
+    sit: { _: [3, 2], backpack: [7, 3] },
+    lie: { _: [-12, 5], backpack: [-4, 7], garaetteok: [2, 10], patjuk: [2, 4] }   // 가래떡·팥죽은 엎드린 앞 바닥에
+  };
+  // 몸 위 한 줄을 무늬로 칠한다 (허리띠 등). 머리·테두리·빈 칸은 건드리지 않는다
+  function bodyBand(g, pose, y, cols) {
+    for (var dy = 0; dy < 2; dy++) {
+      var row = g[y + dy + OUT_PAD.t]; if (!row) continue;
+      for (var x = 0; x < DOG_W; x++) {
+        var c = row[x + OUT_PAD.l];
+        if (!c || isOut(c) || poseHead(pose, x, y + dy)) continue;
+        row[x + OUT_PAD.l] = cols[((x + dy) % 3) === 1 ? 1 : 0];
+      }
+    }
+  }
+  // 엎드려 졸 때 머리 위로 떠오르는 Z (흰 글자 + 검은 테두리)
+  function paintZzz(g, f) {
+    var px = [];
+    var Z = function (x0, y0, n) {
+      for (var i = 0; i < n; i++) px.push([x0 + i, y0], [x0 + n - 1 - i, y0 + i], [x0 + i, y0 + n - 1]);
+    };
+    Z(39 + OUT_PAD.l, (f % 2 ? 4 : 6) + OUT_PAD.t, 4);
+    Z(45 + OUT_PAD.l, (f % 2 ? -6 : -3) + OUT_PAD.t, 5);
+    px.forEach(function (p) { if (g[p[1]]) g[p[1]][p[0]] = '#FFFFFF'; });
+    px.forEach(function (p) {   // 글자 둘레에만 검은 테두리 (밝은 바탕에서도 보이게)
+      for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) {
+        var r = g[p[1] + dy], x = p[0] + dx;
+        if (r && x >= 0 && x < r.length && !r[x]) r[x] = '#1E1914';
+      }
+    });
+  }
+  function outfitGrid(frame, key, pose) {
+    pose = pose || 'run';
     var o = OUTFITS[key] || {}, W = DOG_W + OUT_PAD.l + OUT_PAD.r, H = DOG_H + OUT_PAD.t, g = [];
+    var headDy = pose === 'lie' ? LIE_DY : 0, recDy = pose === 'lie' ? 5 : 0;
     for (var y = 0; y < H; y++) { g.push([]); for (var x = 0; x < W; x++) g[y].push(''); }
     var rec = (o.recolor || []).map(function (r) { return [r[0] * 2, r[1] * 2 + 1, r[2] * 2, r[3] * 2 + 1, fullRecolor(r[4])]; })
       .concat((RECOLOR2[key] || []).map(function (r) { return [r[0], r[1], r[2], r[3], fullRecolor(r[4])]; }));
-    dog2Rows(frame).forEach(function (row, y) {
+    poseRows(pose, frame).forEach(function (row, y) {
       for (var i = 0; i < DOG_W; i++) {
         var ch = row.charAt(i), color = DOG2_COL[ch];
         if (!color) continue;
-        rec.forEach(function (r) { if (i >= r[0] && i <= r[1] && y >= r[2] && y <= r[3] && r[4][ch]) color = r[4][ch]; });
+        var head = poseHead(pose, i, y);
+        rec.forEach(function (r) { if (!head && i >= r[0] && i <= r[1] && y - recDy >= r[2] && y - recDy <= r[3] && r[4][ch]) color = r[4][ch]; });
         g[y + OUT_PAD.t][i + OUT_PAD.l] = color;
       }
     });
@@ -3223,7 +3445,15 @@ window.NBPix = (function () {
       if (h) {
         h.rows.forEach(function (r) { var a = []; for (var i = 0; i < r.length; i++) a.push(h.col[r.charAt(i)] || ''); sg.push(a); });
         ox = h.dx || 0; oy = h.dy || 0;
-      } else {
+      }
+      if (pose !== 'run') {
+        var bp = (BODY_PROPS[key] || {})[oi], ps = POSE_SHIFT[pose][key];
+        if (bp === 'skip') return;   // 세종 허리띠처럼 자세에 맞춰 따로 그리는 소품
+        if (ps) { ox += ps[0]; oy += ps[1]; }
+        else if (bp) { ox += POSE_SHIFT[pose]._[0]; oy += POSE_SHIFT[pose]._[1]; }
+        else oy += headDy;
+      }
+      if (!h) {
         var rows = ov[2], w = Math.max.apply(null, rows.map(function (r) { return r.length; }));
         if (!w) return;
         rows.forEach(function (r) { var a = []; for (var i = 0; i < w; i++) a.push((o.col || {})[r.charAt(i)] || ''); sg.push(a); });
@@ -3242,12 +3472,13 @@ window.NBPix = (function () {
         if (g[yy] && xx >= 0 && xx < W && g[yy][xx] === '') g[yy][xx] = '#1E1914';
       });
     });
-    if (key && DETAIL[key]) DETAIL[key](g, frame);
-    for (var bb = 0; bb < BOB[frame]; bb++) g = g.slice(1).concat([g[0].map(function () { return ''; })]);
+    if (key && DETAIL[key]) DETAIL[key](g, frame, pose);
+    if (pose === 'lie') paintZzz(g, frame);
+    if (pose === 'run') for (var bb = 0; bb < BOB[frame]; bb++) g = g.slice(1).concat([g[0].map(function () { return ''; })]);
     return g;
   }
-  function outfitCanvas(frame, flip, key) {
-    var g = outfitGrid(frame, key), W = g[0].length;
+  function outfitCanvas(frame, flip, key, pose) {
+    var g = outfitGrid(frame, key, pose), W = g[0].length;
     var c = document.createElement('canvas'); c.width = W; c.height = g.length;
     var x = c.getContext('2d');
     g.forEach(function (row, y) { row.forEach(function (col, i) { if (col) { x.fillStyle = col; x.fillRect(flip ? W - 1 - i : i, y, 1, 1); } }); });
@@ -3261,8 +3492,8 @@ window.NBPix = (function () {
     keys.forEach(function (k) {
       var card = document.createElement('div');
       card.style.cssText = 'background:#fff;border:3px solid #1E1914;padding:8px 10px;text-align:center;font:900 15px Noto Sans KR,sans-serif';
-      [0, 2].forEach(function (f) {
-        var src = outfitCanvas(f, false, k), cv = document.createElement('canvas');
+      [[0, 'run'], [2, 'run'], [0, 'sit'], [1, 'lie']].forEach(function (fp) {   // 달리기 2장 + 앉기 + 엎드리기
+        var src = outfitCanvas(fp[0], false, k, fp[1]), cv = document.createElement('canvas');
         cv.width = src.width * S2; cv.height = src.height * S2; cv.style.margin = '0 2px';
         var cx = cv.getContext('2d'); cx.imageSmoothingEnabled = false; cx.drawImage(src, 0, 0, cv.width, cv.height);
         card.appendChild(cv);
@@ -3311,32 +3542,46 @@ window.NBPix = (function () {
   var BOATS = [boatCanvas(false), boatCanvas(true)];
 
   /* ── 지금 입고 있는 착장 그림 (지도·목표 막대·축하 화면이 같이 쓴다) ── */
-  var DOG_FRAMES_N = 4;
-  var dogOutfit = null, dogSprites = null, dogURLs = [];
+  var DOG_FRAMES_N = 4, POSE_FRAMES = { run: 4, sit: 2, lie: 2 };
+  // poseSprites[자세][0 오른쪽 / 1 왼쪽][장], dogURLs는 달리는 그림 (축하 화면이 쓴다)
+  var dogOutfit = null, poseSprites = {}, poseURLs = {}, dogURLs = [];
   function setDogOutfit(key) {
     key = key || '';
     if (key === dogOutfit) return;
     dogOutfit = key;
-    dogSprites = [[], []];
-    dogURLs = [];
-    for (var f = 0; f < DOG_FRAMES_N; f++) {
-      dogSprites[0].push(outfitCanvas(f, false, key));
-      dogSprites[1].push(outfitCanvas(f, true, key));
-      dogURLs.push(dogSprites[0][f].toDataURL());
-    }
-    if ($('gDog')) $('gDog').src = dogURLs[0];
+    Object.keys(POSE_FRAMES).forEach(function (p) {
+      poseSprites[p] = [[], []]; poseURLs[p] = [];
+      for (var f = 0; f < POSE_FRAMES[p]; f++) {
+        poseSprites[p][0].push(outfitCanvas(f, false, key, p));
+        poseSprites[p][1].push(outfitCanvas(f, true, key, p));
+        poseURLs[p].push(poseSprites[p][0][f].toDataURL());
+      }
+    });
+    dogURLs = poseURLs.run;
+    if ($('gDog')) $('gDog').src = poseURLs[dogPose()][0];
   }
-  // 강아지 그림 왼쪽 위(x, y)를 기준으로, 소품 여백까지 포함해 그린다
-  function drawDogAt(c2d, frame, left, x, y, ds) {
-    var s = dogSprites[left ? 1 : 0][frame % DOG_FRAMES_N], offL = left ? OUT_PAD.r : OUT_PAD.l;
+  // 강아지 그림 왼쪽 위(x, y)를 기준으로, 소품 여백까지 포함해 그린다 (pose: run·sit·lie)
+  function drawDogAt(c2d, frame, left, x, y, ds, pose) {
+    var set = poseSprites[pose || 'run'][left ? 1 : 0], s = set[frame % set.length], offL = left ? OUT_PAD.r : OUT_PAD.l;
     c2d.drawImage(s, x - offL * ds, y - OUT_PAD.t * ds, s.width * ds, s.height * ds);
   }
   setDogOutfit('');
-  // 다음 목표 막대 위의 작은 강아지도 같은 그림으로 달리게
+  // 막대 위 초코 그림 넘기기: 달릴 때는 0.11초마다, 쉴 때는 0.66초마다 (꼬리·숨쉬기가 느긋하게)
+  function dogFlipper(img, pose) {
+    var f = 0, tick = 0;
+    return function () {
+      var p = pose(), u = poseURLs[p];
+      tick++;
+      if (p !== 'run' && tick % 6 && img.dataset.pose === p) return;
+      img.dataset.pose = p;
+      f++; img.src = u[f % u.length];
+    };
+  }
+  // 다음 목표 막대 위의 작은 강아지도 같은 그림으로 (지도에서 달려가는 동안은 같이 달린다)
   (function () {
-    var f = 0, img = $('gDog');
+    var img = $('gDog'), step = dogFlipper(img, function () { return trip.running() ? 'run' : dogPose(); });
     img.src = dogURLs[0];
-    setInterval(function () { if (S.view === 'tv' && !document.hidden) { f = (f + 1) % DOG_FRAMES_N; img.src = dogURLs[f]; } }, 110);
+    setInterval(function () { if (S.view === 'tv' && !document.hidden) step(); }, 110);
   })();
 
   /* ── 오늘 입을 착장 고르기 ──
@@ -3937,6 +4182,7 @@ window.NBPix = (function () {
       var ds = Math.max(1, Math.round(k * .725));
       var dw = DOG_W * ds, dh = DOG_H * ds;
       var running = now - anim.t0 < anim.dur;
+      var pose = running ? 'run' : dogPose(), pf = pose === 'run' ? frame % 4 : (frame >> 3) % 2;   // 쉴 때는 0.7초마다 한 장
       // 뱃길: 강아지가 배에 타고 물결 위에서 흔들린다
       if (pts[a.i] && pts[a.i].sea) {
         var bw = BOAT_W * ds, bh = BOAT_H * ds, rock = slow ? ds * 2 : 0;
@@ -3952,9 +4198,9 @@ window.NBPix = (function () {
         ctx.fillStyle = 'rgba(255,255,255,.75)';
         ctx.fillRect(bx0 + ds * 4, wy + ds * 2, bw - ds * 8, ds);
         var dogY = by0 + (BOAT_DECK + 5) * ds - dh;                            // 갑판 뒤에 서서 몸만 보인다
-        drawDogAt(ctx, 1, left, Math.round(a.x * k - dw / 2), dogY, ds);
+        drawDogAt(ctx, pose === 'run' ? 1 : pf, left, Math.round(a.x * k - dw / 2), dogY, ds, pose);
         ctx.drawImage(BOATS[left ? 1 : 0], bx0, by0, bw, bh);
-        drawBubble(Math.round(a.x * k), dogY - 8 * ds, by0 + bh, k);
+        drawBubble(Math.round(a.x * k), dogY + (pose === 'lie' ? 4 : -8) * ds, by0 + bh, k);
         return;
       }
       var dx = Math.round(a.x * k - dw / 2), dy = Math.round(a.y * k - dh + ds * 4);
@@ -3963,10 +4209,10 @@ window.NBPix = (function () {
       ctx.fillRect(dx + ds * 6, Math.round(a.y * k + ds * 4), dw - ds * 14, ds * 2);
       ctx.fillStyle = 'rgba(255,255,255,.85)';
       var back = a.dx < 0 ? dx + dw - ds * 4 : dx;
-      if (frame % 4 === 0 || running) ctx.fillRect(back, Math.round(a.y * k + ds), ds * 3, ds * 3);
-      if (running || frame % 4 === 1) ctx.fillRect(back + (a.dx < 0 ? ds * 4 : -ds * 4), Math.round(a.y * k) - ds * 2, ds * 2, ds * 2);
-      drawDogAt(ctx, frame % 4, left, dx, dy, ds);
-      drawBubble(Math.round(a.x * k), dy - 8 * ds, dy + dh, k);   // 모자 자리까지 비워 둔다
+      if (pose === 'run' && (frame % 4 === 0 || running)) ctx.fillRect(back, Math.round(a.y * k + ds), ds * 3, ds * 3);
+      if (pose === 'run' && (running || frame % 4 === 1)) ctx.fillRect(back + (a.dx < 0 ? ds * 4 : -ds * 4), Math.round(a.y * k) - ds * 2, ds * 2, ds * 2);
+      drawDogAt(ctx, pf, left, dx, dy, ds, pose);
+      drawBubble(Math.round(a.x * k), dy + (pose === 'lie' ? 4 : -8) * ds, dy + dh, k);   // 모자 자리까지 비워 둔다
     }
     /* 강아지 말풍선: 도트 테두리 흰 상자 + 강아지 쪽 꼬리. 대사는 7초마다 바뀐다.
        위에 자리가 없으면 강아지 아래에 띄운다. */
@@ -4044,6 +4290,7 @@ window.NBPix = (function () {
       aspect: MAP.W / MAP.H,
       setWeather: setWeather,
       setTalk: function (list) { talk = list || []; },
+      running: function () { return performance.now() - anim.t0 < anim.dur; },
       kick: kick
     };
   })();
@@ -4213,11 +4460,10 @@ window.NBPix = (function () {
     $('stRunner').style.left = pct.toFixed(1) + '%';
   };
   (function () {
-    var f = 0;
+    var img = $('stDog'), step = img && dogFlipper(img, dogPose);
     setInterval(function () {
-      var img = $('stDog');
       if (!img || S.view !== 'check' || $('startPanel').hidden || document.hidden || !dogURLs.length) return;
-      f = (f + 1) % DOG_FRAMES_N; img.src = dogURLs[f];
+      step();
     }, 110);
   })();
   function renderWeather(w) {
