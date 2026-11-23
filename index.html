@@ -421,9 +421,6 @@ img.emo { width: 1em; height: 1em; display: inline-block; vertical-align: -0.12e
 .kmcard .a { font-family: var(--display); font-size: clamp(32px, 2.8vw, 52px); line-height: 1.1; color: #FFE27A; white-space: nowrap; margin-left: auto; }
 .kmcard .a small { font-family: var(--body); font-weight: 900; font-size: .45em; color: #fff; margin-left: 4px; }
 .side-card { background: var(--card); border: 1px solid var(--rule); border-radius: 20px; padding: 14px 16px; }
-/* 오늘 전광판: 검은 틀 안의 LED 도트 (canvas 한 장에 점으로 그린다) */
-.led { background: #141110; border-radius: 20px; padding: 8px 10px; box-shadow: inset 0 0 0 3px #2E2724, 0 2px 0 rgba(0,0,0,.12); }
-.led canvas { display: block; width: 100%; height: 60px; }
 .side-card h3 { margin: 0 0 10px; font-family: var(--display); font-weight: 400; font-size: clamp(19px, 1.6vw, 28px); }
 .side-card h3 small { font-family: var(--body); font-size: .55em; color: var(--ink-soft); font-weight: 700; margin-left: 6px; }
 .gbars { display: grid; gap: 8px; }
@@ -434,10 +431,10 @@ img.emo { width: 1em; height: 1em; display: inline-block; vertical-align: -0.12e
 .gbar .track { height: .85em; background: #ECEFEA; border-radius: 999px; overflow: hidden; }
 .gbar .track i { display: block; height: 100%; border-radius: 999px; }
 .gbar .v { text-align: right; }
-.toplist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.toplist { list-style: none; margin: 0; padding: 0; display: grid; gap: calc(6px * var(--tk, 1)); }   /* --tk: 넘칠 때 줄이는 비율 */
 .toplist li {
-  display: grid; grid-template-columns: 2.4em minmax(0, 1fr) auto; gap: 8px; align-items: baseline;
-  font-size: clamp(15px, 1.25vw, 23px);
+  display: grid; grid-template-columns: 2.4em minmax(0, 1fr) auto; gap: .5em; align-items: baseline;
+  font-size: calc(clamp(15px, 1.25vw, 23px) * var(--tk, 1));
 }
 .toplist .p { font-family: var(--display); color: var(--track); }
 .toplist .n { font-weight: 900; word-break: keep-all; line-height: 1.35; }
@@ -481,9 +478,7 @@ body.tv.tv-scroll .gameboard { flex: none; }
   body.tv .gb-box { grid-area: board; padding: 1.4vw 1.8vw 1.6vw; border-radius: 3vw; }
   body.tv .side { grid-area: side; gap: 1.6vw; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   /* 지도 자리를 넉넉히 남기려고 학년별·친구는 나란히 */
-  body.tv .side-stats, body.tv .kmcard, body.tv .updated, body.tv .faster-card, body.tv .led { grid-column: 1 / -1; }
-  body.tv .led { border-radius: 2.8vw; padding: .9vw 1.6vw; box-shadow: inset 0 0 0 .4vw #2E2724; }
-  body.tv .led canvas { height: 5.56vw; }   /* 1080 폭에서 60px = 점 20줄 × 3px */
+  body.tv .side-stats, body.tv .kmcard, body.tv .updated, body.tv .faster-card { grid-column: 1 / -1; }
   body.tv .faster .fchip { font-size: 1.9vw; }
   body.tv .faster { align-items: center; }
   body.tv .faster .none { font-size: 2.2vw; }
@@ -495,9 +490,9 @@ body.tv.tv-scroll .gameboard { flex: none; }
   body.tv .pdots i { width: 1vw; height: 1vw; }
 
   body.tv .side-stats { gap: 1.6vw; }
-  body.tv .stat { padding: .9vw 2.4vw; border-radius: 2.6vw; }   /* 전광판 자리를 내려고 위아래 여백만 좁힘 */
+  body.tv .stat { padding: 1.6vw 2.4vw; border-radius: 2.6vw; }
   body.tv .stat .lbl { font-size: 2.6vw; }
-  body.tv .stat .val { font-size: 6.6vw; line-height: 1.02; }
+  body.tv .stat .val { font-size: 6.6vw; }
   body.tv .stat .val small { font-size: 2.4vw; }
   body.tv .stat .sub { font-size: 1.9vw; }
   body.tv .stat.rec .ribbon { font-size: 2.2vw; }
@@ -508,10 +503,12 @@ body.tv.tv-scroll .gameboard { flex: none; }
   body.tv .side-card h3 { font-size: 3.4vw; margin-bottom: 1.2vw; }
   body.tv .gbars { gap: .9vw; }
   body.tv .gbar { font-size: 2.6vw; gap: 1.2vw; }
-  body.tv .toplist { gap: 1vw; }
-  body.tv .toplist li { font-size: 2.6vw; gap: 1.2vw; }
+  body.tv .toplist { gap: calc(1vw * var(--tk, 1)); }
+  body.tv .toplist li { font-size: calc(2.6vw * var(--tk, 1)); gap: .46em; }
   /* 같은 등수가 많아도 두 줄까지만 (여행판 자리를 남기려고) */
-  body.tv .toplist .n { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  body.tv .top-card { display: flex; flex-direction: column; }
+  body.tv .topwrap { position: relative; flex: 1; min-height: 0; overflow: hidden; }   /* 칸 높이는 [학년별]이 정하고 목록은 그 안에 */
+  body.tv .topwrap .toplist { position: absolute; top: 0; left: 0; right: 0; }
   body.tv .empty-txt { font-size: 2.6vw; }
   body.tv .updated { font-size: 1.9vw; margin-top: 0; }
 
@@ -942,12 +939,11 @@ tr:last-child td { border-bottom: 0; }
           <h3>학년별 <small>이번 주 달린 바퀴</small></h3>
           <div class="gbars" id="sGrades"></div>
         </div>
-        <div class="side-card">
+        <div class="side-card top-card">
           <h3>이번 주 많이 달린 친구</h3>
-          <ol class="toplist" id="sTop"></ol>
+          <!-- TV 세로에서는 옆 [학년별] 칸 높이에 맞추고, 넘치면 목록 글씨를 함께 줄여 칸에 맞춘다 (fitTop) -->
+          <div class="topwrap"><ol class="toplist" id="sTop"></ol></div>
         </div>
-        <!-- 오늘 전광판: 1바퀴 이상 달린 학생이 학년순으로 오른쪽→왼쪽으로 흐른다 (아무도 안 달렸으면 숨김) -->
-        <div class="led" id="sLed" hidden><canvas id="sLedCv" aria-label="오늘 달린 친구들 전광판"></canvas></div>
         <div class="side-card faster-card">
           <!-- 칭찬 블록: 오늘 더 빨리 (판이 여럿이면 10초마다 번갈아 (내용 없는 블록은 건너뜀) -->
           <div class="praise" id="sPraise"></div>
@@ -1873,7 +1869,7 @@ window.NBPix = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '105';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '107';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -2682,7 +2678,6 @@ window.NBPix = (function () {
 
     // 한 부분이 오류가 나도 나머지는 그려지게 (오류 내용은 화면 아래에)
     try { renderSide(roster, per, trackM); } catch (e) { window.nbShowErr('학년·친구', e); }
-    try { renderLed(roster, per, trackM); } catch (e) { window.nbShowErr('전광판', e); }
     try { renderPraise(d, roster); } catch (e) { window.nbShowErr('칭찬 블록', e); }
     try { renderJourney(route, total / trackM, today / trackM, trackM); } catch (e) { window.nbShowErr('전국 일주', e); }
   }
@@ -4309,7 +4304,7 @@ window.NBPix = (function () {
     var W = tripEl.clientWidth || 600, gap = 16;
     var boxTop = box.getBoundingClientRect().top + window.pageYOffset;
     var H = window.innerHeight - boxTop - head.offsetHeight - 44;
-    var fit = H >= 220;   // 전광판이 생겨 TV 세로에서 지도 자리가 약 250px로 줄었다
+    var fit = H >= 280;
     if (!fit) H = Math.max(420, Math.min(720, W * 1.1));
     document.body.classList.toggle('tv-scroll', !fit);
     var nSeg = Math.max(1, Math.min(journey.stops.length - 1, journey.nextIdx)), A = trip.aspect, mapW, mapH;   // 보이는 구간 수
@@ -4423,117 +4418,6 @@ window.NBPix = (function () {
   window.nbRecordTest = function (on) {   // 미리보기에서 시험: nbRecordTest(true) → 신기록 모습 + 폭죽, nbRecordTest(false) → 신기록까지
     renderRecord({ m: on ? 25600 : 30000, date: '' }, 26880, 320); if (on) cardBurst();
   };
-  /* ── 오늘 전광판 ──
-     글씨를 ROWS줄 높이의 작은 그림으로 한 번 그려 점(도트)으로 바꿔 두고, 매 장면마다 그 그림을 점 한 칸씩 왼쪽으로 옮겨 그린다.
-     흐르는 줄은 '조각'(학생 전체 한 묶음)을 이어 붙인 것: 오른쪽 끝이 비면 다음 조각을 붙이므로,
-     새 기록이 와도 지금 흐르는 글씨는 그대로 두고 다음 조각부터 바뀐다. 22명이 한 번 지나가는 데 약 25초. */
-  var LED = { rows: 20, items: 0, strip: null, next: null, runs: [], label: null, raf: 0, last: 0, speed: 60, sig: '' };
-  function ledBits(segs) {   // segs: [{t, c}] → { cv(점 1개 = 1px, 꺼진 점은 투명), w }
-    var font = '900 ' + (LED.rows - 2) + 'px "Noto Sans KR", sans-serif';   // 점 20줄에서 가장 또렷했던 글꼴
-    var m = document.createElement('canvas').getContext('2d'); m.font = font;
-    var w = 0; segs.forEach(function (s) { s.x = w; w += Math.ceil(m.measureText(s.t).width) + (s.gap || 0); });
-    var cv = document.createElement('canvas'); cv.width = Math.max(1, w); cv.height = LED.rows;
-    var x = cv.getContext('2d'); x.font = font; x.textBaseline = 'middle';
-    segs.forEach(function (s) { x.fillStyle = s.c; x.fillText(s.t, s.x, LED.rows / 2 + 1); });
-    var img = x.getImageData(0, 0, cv.width, cv.height), p = img.data;
-    for (var i = 3; i < p.length; i += 4) p[i] = p[i] > 120 ? 255 : 0;   // 반쯤 걸친 점은 켜거나 끄거나
-    x.putImageData(img, 0, 0);
-    return { cv: cv, w: cv.width };
-  }
-  // 학년 색(QR 카드와 같은 색)을 검은 바탕에서 잘 보이게 LED처럼 밝힌 색
-  var LED_COLS = { 1: '#FF6B5A', 2: '#FF9A3C', 3: '#FFD84A', 4: '#4FD683', 5: '#5EA8FF', 6: '#BE8EFF' };
-  function ledStrip(list) {
-    var segs = [];
-    list.forEach(function (it) {
-      var c = LED_COLS[it.g] || '#D8D2C8';
-      segs.push({ t: it.name, c: c, gap: 4 });
-      segs.push({ t: it.laps + '바퀴', c: '#FFE9B0', gap: 22 });
-    });
-    return ledBits(segs);
-  }
-  function renderLed(roster, per, trackM) {
-    var box = $('sLed'); if (!box) return;
-    var list = [];
-    (roster || []).forEach(function (p, i) {
-      var laps = Math.round(((per[p.id] || {}).todayM || 0) / trackM);
-      if (laps >= 1) list.push({ name: p.name, laps: laps, g: gradeNum(p), i: i });
-    });
-    list.sort(function (a, b) { return (a.g - b.g) || (a.i - b.i); });   // 학년순, 같은 학년은 명단(번호) 순
-    var sig = list.map(function (it) { return it.name + it.laps; }).join('|');
-    if (!list.length) { box.hidden = true; LED.strip = LED.next = null; LED.runs = []; LED.sig = ''; if (LED.raf) cancelAnimationFrame(LED.raf); LED.raf = 0; return; }
-    if (sig === LED.sig && LED.strip) return;
-    LED.sig = sig; LED.list = list;
-    var st = ledStrip(list);
-    LED.speed = st.w / list.length * 22 / 25;   // 학생 한 명 평균 길이로 맞춰서, 몇 명이든 같은 빠르기
-    if (!LED.label) LED.label = ledBits([{ t: '오늘', c: '#FFD54A' }]);
-    var fresh = box.hidden || !LED.strip;
-    box.hidden = false;
-    if (fresh) { LED.strip = st; LED.next = null; LED.runs = []; ledSize(); }
-    else LED.next = st;
-    if (!LED.raf) LED.raf = requestAnimationFrame(ledFrame);
-  }
-  // 글꼴이 늦게 내려오면 그 글꼴로 다시 그린다
-  if (document.fonts && document.fonts.load) document.fonts.load('900 18px "Noto Sans KR"').then(function () {
-    if (!LED.list) return; LED.label = ledBits([{ t: '오늘', c: '#FFD54A' }]); LED.next = ledStrip(LED.list);
-  }, function () {});
-  function ledSize() {
-    var cv = $('sLedCv'); if (!cv) return;
-    cv.style.height = '';   // CSS에 정한 높이로 재고, 점 크기에 딱 맞게 조금 줄인다 (점이 납작해지지 않게)
-    var dpr = window.devicePixelRatio || 1, cw = cv.clientWidth * dpr, ch = cv.clientHeight * dpr;
-    if (!cw || !ch) return;
-    var pitch = Math.max(2, Math.floor(ch / LED.rows));
-    var cols = Math.floor(cw / pitch);
-    LED.pitch = pitch; LED.cols = cols;
-    cv.width = cols * pitch; cv.height = LED.rows * pitch;
-    cv.style.height = (cv.height / dpr) + 'px';
-    // 작은 판(점 1개 = 1px)과, 점 사이 틈을 만드는 덮개
-    LED.small = document.createElement('canvas'); LED.small.width = cols; LED.small.height = LED.rows;
-    var mk = document.createElement('canvas'); mk.width = cv.width; mk.height = cv.height;
-    var mx = mk.getContext('2d'); mx.fillStyle = '#141110'; mx.fillRect(0, 0, mk.width, mk.height);
-    mx.globalCompositeOperation = 'destination-out';
-    var r = pitch * .42;
-    for (var y = 0; y < LED.rows; y++) for (var x = 0; x < cols; x++) {
-      mx.beginPath(); mx.arc(x * pitch + pitch / 2, y * pitch + pitch / 2, r, 0, Math.PI * 2); mx.fill();
-    }
-    LED.mask = mk; LED.drawn = null;
-  }
-  window.addEventListener('resize', function () { if (LED.strip) ledSize(); });
-  function ledFrame(now) {
-    LED.raf = 0;
-    if (!LED.strip || $('sLed').hidden) return;
-    LED.raf = requestAnimationFrame(ledFrame);
-    var dt = LED.last ? Math.min(.1, (now - LED.last) / 1000) : 0; LED.last = now;
-    if (document.hidden || !LED.small) { if (!LED.small) ledSize(); return; }
-    var lw = LED.label.w + 9, view = LED.cols - lw;   // 왼쪽 '오늘' 자리, 그 오른쪽이 흐르는 곳
-    var runs = LED.runs, mv = LED.speed * dt;
-    runs.forEach(function (r) { r.x -= mv; });
-    while (runs.length && runs[0].x + runs[0].s.w < 0) runs.shift();
-    var end = runs.length ? runs[runs.length - 1].x + runs[runs.length - 1].s.w : view;
-    while (end <= view) {   // 오른쪽이 비면 다음 조각을 붙인다 (새 기록이 있으면 그것)
-      if (LED.next) { LED.strip = LED.next; LED.next = null; }
-      runs.push({ s: LED.strip, x: end }); end += LED.strip.w;
-    }
-    var key = runs.map(function (r) { return Math.floor(r.x); }).join(',');
-    if (key === LED.drawn) return;   // 점 한 칸도 안 움직였으면 그대로
-    LED.drawn = key;
-    var s = LED.small.getContext('2d');
-    s.fillStyle = '#3A2A20'; s.fillRect(0, 0, LED.cols, LED.rows);   // 꺼진 점
-    runs.forEach(function (r) { s.drawImage(r.s.cv, lw + Math.floor(r.x), 0); });
-    s.fillStyle = '#3A2A20'; s.fillRect(0, 0, lw, LED.rows);
-    s.drawImage(LED.label.cv, 1, 0);
-    s.fillStyle = '#6B5242'; s.fillRect(lw - 5, 1, 1, LED.rows - 2);   // '오늘'과 흐르는 곳 사이 세로줄
-    var cv = $('sLedCv'), x = cv.getContext('2d');
-    x.imageSmoothingEnabled = false;
-    x.drawImage(LED.small, 0, 0, cv.width, cv.height);
-    x.drawImage(LED.mask, 0, 0);
-  }
-  window.nbLedTest = function (n) {   // 미리보기 시험: nbLedTest(5) → 5명만, nbLedTest(0) → 숨김
-    var roster = (lastBoard && lastBoard.roster) || [], per = {};
-    roster.slice(0, n == null ? roster.length : n).forEach(function (p, i) { per[p.id] = { todayM: 320 * (1 + i % 7) }; });
-    if (LED.raf) cancelAnimationFrame(LED.raf); LED.raf = 0; LED.last = 0;
-    renderLed(roster, per, 320);
-    return LED;
-  };
   function renderPraise(d, roster) {
     var byId = {}; (roster || []).forEach(function (p) { byId[p.id] = p; });
     var pr = d.praise || {}, chips = function (list, tail) {
@@ -4580,18 +4464,41 @@ window.NBPix = (function () {
         '%;background:' + c + '"></i></span><span class="v num">' + t.laps.toLocaleString('ko-KR') + '바퀴</span></div>';
     }).join('') : '<div class="empty-txt">명단에 학년을 넣으면 나와요.</div>';
 
-    // 화면에 보이는 바퀴 수가 같으면 같은 등수 (1등 여러 명 → 다음은 2등). 3등까지 보여 준다.
+    // 화면에 보이는 바퀴 수가 같으면 같은 등수 (1등 여러 명 → 다음은 2등). 5등까지 보여 준다.
     var groups = {};
     roster.forEach(function (p) {
       var laps = Math.round(((per[p.id] || {}).weekM || 0) / trackM);
       if (laps > 0) (groups[laps] = groups[laps] || []).push(p.name);
     });
-    var ranks = Object.keys(groups).map(Number).sort(function (a, b) { return b - a; }).slice(0, 3);
+    var ranks = Object.keys(groups).map(Number).sort(function (a, b) { return b - a; }).slice(0, 5);
     $('sTop').innerHTML = ranks.length ? ranks.map(function (laps, i) {
       return '<li><span class="p">' + (i + 1) + '등</span><span class="n">' + groups[laps].map(esc).join(', ') +
         '</span><span class="v num">' + laps + '바퀴</span></li>';
     }).join('') : '<li class="e"><span class="empty-txt">이번 주 첫 기록을 기다리고 있어요.</span></li>';
+    fitTop();
   }
+  // 많이 달린 친구 목록이 칸(TV 세로: [학년별] 칸 높이)을 넘치면 등수·이름·바퀴 글씨를 같은 비율로 줄여 딱 맞춘다. 최소 크기 없음
+  function fitTop() {
+    var ol = $('sTop'), w = ol && ol.parentNode; if (!w) return;
+    ol.style.setProperty('--tk', '1');
+    if (getComputedStyle(ol).position !== 'absolute') return;   // 칸이 위아래로 쌓이는 화면은 그냥 늘어남
+    var H = w.clientHeight; if (!H || ol.offsetHeight <= H) return;
+    var lo = 0.05, hi = 1;
+    for (var i = 0; i < 12; i++) {
+      var mid = (lo + hi) / 2; ol.style.setProperty('--tk', String(mid));
+      if (ol.offsetHeight <= H) lo = mid; else hi = mid;
+    }
+    ol.style.setProperty('--tk', String(lo));
+  }
+  // 칸 크기가 바뀔 때마다 다시 맞춤 (창 크기·가로세로 전환·옆 칸 높이 변화). 칸 크기만 보므로 글씨를 바꿔도 다시 불리지 않는다
+  if (window.ResizeObserver) { var topSz = ''; new ResizeObserver(function () { var w = $('sTop') && $('sTop').parentNode, sz = w ? w.clientWidth + 'x' + w.clientHeight : ''; if (!w || sz === topSz) return; topSz = sz; fitTop(); }).observe(document.querySelector('.topwrap')); }
+  else window.addEventListener('resize', function () { if (document.body.classList.contains('tv')) fitTop(); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { fitTop(); });
+  window.nbTopTest = function (n) {   // 미리보기 시험: nbTopTest(22) → 22명이 5개 등수에 나뉘어 들어감
+    var roster = (lastBoard && lastBoard.roster) || [], per = {};
+    roster.slice(0, n).forEach(function (p, i) { per[p.id] = { weekM: 320 * (10 - i % 5) }; });
+    renderSide(roster, per, 320);
+  };
 
   /* ════════ 카드 ════════ */
   var cardsReady = false;
