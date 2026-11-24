@@ -1896,7 +1896,7 @@ window.NBPix = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '111';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '112';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -2499,6 +2499,7 @@ window.NBPix = (function () {
     run.classList.toggle('camoff', S.camHidden);
     var rd = $('reader');
     fitNames();
+    fitCards();
     if (n === 3) { var avail = H - stackH - 40; rd.style.width = Math.max(120, Math.min(window.innerWidth * .94, avail)) + 'px'; }
     else rd.style.width = '';
   }
@@ -2511,6 +2512,30 @@ window.NBPix = (function () {
         var fs = parseFloat(getComputedStyle(el).fontSize);
         el.style.fontSize = Math.max(16, Math.floor(fs * w / sw * .96)) + 'px';
       }
+    });
+  }
+  /* 카드 안 글이 카드 높이보다 길면 글 전체를 같은 비율로 줄인다.
+     글씨 크기가 화면 폭(vw)을 따라가서, 폭에 비해 키가 작은 화면(아이패드 미니 768×1004 등)에서는
+     쌓인 카드(2장 이상) 높이를 넘쳐 위·아래가 잘렸다. 카드 높이는 줄어드는 중일 수 있어 목표 높이(style.height)로 잰다 */
+  function fitCards() {
+    Array.prototype.forEach.call(document.querySelectorAll('#fbStack .card:not(.out)'), function (c) {
+      var kids = Array.prototype.slice.call(c.children);
+      kids.forEach(function (k) { k.style.zoom = ''; });
+      var target = parseFloat(c.style.height);
+      if (!(target > 0) || !kids.length) return;
+      var cs = getComputedStyle(c), padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+      var avail = target - padY - (cs.boxSizing === 'border-box' ? parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth) : 0);
+      var top = Infinity, bottom = -Infinity;
+      kids.forEach(function (k) {
+        if (!k.offsetHeight) return;
+        var ks = getComputedStyle(k);
+        top = Math.min(top, k.offsetTop - parseFloat(ks.marginTop));
+        bottom = Math.max(bottom, k.offsetTop + k.offsetHeight + parseFloat(ks.marginBottom));
+      });
+      var need = bottom - top;
+      if (!(need > avail) || avail <= 0) return;
+      var z = Math.max(.4, Math.floor(avail / need * 100) / 100 - .01);
+      kids.forEach(function (k) { k.style.zoom = z; });
     });
   }
   // 카드 속 초코들이 함께 달린다
