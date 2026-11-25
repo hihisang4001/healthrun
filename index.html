@@ -1918,7 +1918,7 @@ window.NBPix = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '119';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '120';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -5172,8 +5172,7 @@ window.NBPix = (function () {
   };
   // '확인 N' 칩을 누르면 뜨는 상자 내용
   function gymShortHtml(name, gs) {
-    return '<b>' + esc(name) + ' · 확인해 볼 강당 체크 ' + gs.length + '번</b><small>평소 강당 다섯 바퀴 ' + secTxt(gs[0].med) +
-      '의 65%보다 짧았어요. 다섯 바퀴를 다 돌았는지 이야기 나눠 보세요 (그날 빨리 달렸을 수도 있어요).</small><ul>' +
+    return '<b>' + esc(name) + ' · 확인해 볼 강당 체크 ' + gs.length + '번</b><small>평소 강당 다섯 바퀴에 걸리는 시간보다 유난히 짧은 기록이 있어요.</small><ul>' +
       gs.map(function (g) { return '<li>' + mdw(g.date) + (g.at ? ' ' + esc(g.at) : '') + (g.nth ? ' · 그날 강당 ' + g.nth + '번째 체크(강당 ' + (g.nth * 5 - 4) + '~' + (g.nth * 5) + '바퀴째)' : '') + ' · ' + secTxt(g.sec) + ' (평소의 ' + Math.round(g.sec / g.med * 100) + '%)</li>'; }).join('') + '</ul>';
   }
   function secTxt(s) {   // 108 → '1분 48초'
@@ -5712,7 +5711,7 @@ window.NBPix = (function () {
         for (var i = 1; i < rows.length; i++) {
           if (rows[i].gym) gymNo++;
           var sec = Math.round((rows[i].t - rows[i - 1].t) / 1000);
-          if (sec < 30 || sec > 900) continue;
+          if (sec < (settings.dedupeSec || 60) || sec > 600) continue;   // 서버와 같게: 중복 방지 시간 ~ 10분
           var x = out[rows[i].date] || (out[rows[i].date] = {});
           var tt = new Date(rows[i].t);
           (x[rows[i].id] || (x[rows[i].id] = [])).push([sec, rows[i].gym ? 1 : 0, i === 1 ? 1 : 0, ('0' + tt.getHours()).slice(-2) + ':' + ('0' + tt.getMinutes()).slice(-2), rows[i].gym ? gymNo : i]);
