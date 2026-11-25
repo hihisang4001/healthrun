@@ -1918,7 +1918,7 @@ window.NBPix = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '120';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '121';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -3435,6 +3435,8 @@ window.NBPix = (function () {
   };
   // 새 몸에 맞춰 예전 소품 자리를 조금 옮김 (새 칸 기준 [x, y])
   var OVER_SHIFT = { backpack: { 0: [4, 5], 1: [4, 5] } };
+  // 머리에 쓰는 소품(over 0번)을 머리 가운데에 맞추고 2칸 내려 머리 윗부분을 덮게 (얹힌 게 아니라 눌러쓴 느낌). 세 자세 모두 [x, y]
+  var HAT_SHIFT = { waterdrop: [0, 2], sprout: [0, 2], crown: [0, 2], army: [0, 2], santa: [0, 2], summer: [0, 2], spring: [3, 2], autumn: [4, 2] };
   // 목도리: 목을 한 바퀴 감고, 끝은 뒤로 휘날린다 (강아지 칸 기준)
   function paintScarf(g, f, R, r, pose) {
     var P = { k: '#1E1914', R: R, r: r, W: '#FFFFFF' }, hy = pose === 'lie' ? LIE_DY : 0;
@@ -3552,6 +3554,8 @@ window.NBPix = (function () {
         h.rows.forEach(function (r) { var a = []; for (var i = 0; i < r.length; i++) a.push(h.col[r.charAt(i)] || ''); sg.push(a); });
         ox = h.dx || 0; oy = h.dy || 0;
       }
+      var hs = oi === 0 && HAT_SHIFT[key];
+      if (hs) { ox += hs[0]; oy += hs[1]; }
       if (pose !== 'run') {
         var bp = (BODY_PROPS[key] || {})[oi], ps = POSE_SHIFT[pose][key];
         if (bp === 'skip') return;   // 세종 허리띠처럼 자세에 맞춰 따로 그리는 소품
