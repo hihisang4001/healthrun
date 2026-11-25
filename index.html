@@ -448,10 +448,11 @@ img.emo { width: 1em; height: 1em; display: inline-block; vertical-align: -0.12e
 .gbar .v { text-align: right; }
 .toplist { list-style: none; margin: 0; padding: 0; display: grid; gap: calc(6px * var(--tk, 1)); }   /* --tk: 넘칠 때 줄이는 비율 */
 .toplist li {
-  display: grid; grid-template-columns: 2.4em minmax(0, 1fr) auto; gap: .5em; align-items: baseline;
+  display: grid; grid-template-columns: 3em minmax(0, 1fr) auto; gap: .5em; align-items: baseline;
   font-size: calc(clamp(15px, 1.25vw, 23px) * var(--tk, 1));
 }
-.toplist .p { font-family: var(--display); color: var(--track); }
+.toplist .p { font-family: var(--display); color: var(--track); align-self: center; }
+.toplist .p .rdog { display: block; width: 3em; height: auto; image-rendering: pixelated; }   /* 등수 자리의 달리는 초코 */
 .toplist .n { font-weight: 900; word-break: keep-all; line-height: 1.35; }
 /* 이름 카드: 둥근 모서리, 글자에 딱 맞는 작은 여백 (위: 이름, 아래: 기록) */
 .ncard { display: inline-block; box-sizing: border-box; border: 2px solid #9CCFAE; border-radius: 9px; padding: .3em .6em .35em; text-align: center; vertical-align: top; }
@@ -459,13 +460,16 @@ img.emo { width: 1em; height: 1em; display: inline-block; vertical-align: -0.12e
 .ncard .nm { font-family: var(--body); font-weight: 700; font-size: clamp(15px, 1.25vw, 22px); line-height: 1.15; color: #111; white-space: nowrap; }   /* 굵은 제목 글꼴 대신 본문 글꼴 700으로 조금 얇게 */
 .ncard .tl { font-weight: 500; font-size: clamp(11px, .85vw, 15px); line-height: 1; white-space: nowrap; }
 .faster.ncards { display: flex; flex-wrap: wrap; gap: 6px; }
-/* 오늘 많이 달린 친구: 흐르는 띠 (같은 묶음을 두 벌 이어 붙이고 반만큼 움직여 끊김 없이) */
-.dtrack { overflow: hidden; position: relative; -webkit-mask-image: linear-gradient(90deg, transparent, #000 3%, #000 97%, transparent); mask-image: linear-gradient(90deg, transparent, #000 3%, #000 97%, transparent); }
-.dbelt { display: flex; width: max-content; will-change: transform; }
-.dbelt.flow { animation: dayBelt var(--dur, 20s) linear infinite; }
-.dbelt .ncard { margin-right: 10px; flex: none; }
-.dbelt .empty-txt { padding: 4px 0; }
-@keyframes dayBelt { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+/* 이번 주 / 오늘 많이 달린 친구: 두 판을 같은 칸에 겹쳐 두고 하나만 보인다. 배경색으로 구분 (글자 대비 4.5:1 이상) */
+.top-card { background: #E6F4EA; border-color: #BFE0C9; transition: background-color .6s, border-color .6s; }
+.top-card.day { background: #FFEFD9; border-color: #F3CFA3; }
+.tpanes { display: grid; }
+/* 바꿀 때 글자가 겹치지 않게: 보이던 판이 0.4초에 사라진 뒤 다음 판이 0.4초에 나타난다 */
+.tpane { grid-area: 1 / 1; display: flex; flex-direction: column; min-height: 0; visibility: hidden; opacity: 0; transition: opacity .4s, visibility 0s .4s; }
+.tpane.on { visibility: visible; opacity: 1; transition: opacity .4s .4s, visibility 0s .4s; }
+#tpWeek h3 { color: #1E6B3A; }
+#tpDay h3 { color: #B4501A; }
+#tpDay .toplist .p { color: #B4501A; }
 .toplist .v { white-space: nowrap; }
 .toplist .g { color: var(--ink-soft); font-size: .78em; font-weight: 500; margin-left: 4px; }
 .toplist .v { font-weight: 700; }
@@ -509,10 +513,7 @@ body.tv.tv-scroll .gameboard { flex: none; }
   body.tv .ncard { border-width: .3vw; border-radius: 1vw; }
   body.tv .ncard .nm { font-size: 2.8vw; }
   body.tv .ncard .tl { font-size: 1.8vw; }
-  body.tv .dbelt .ncard { margin-right: 1.4vw; }
-  body.tv .dbelt .ncard .nm { font-size: 3.6vw; }   /* 한 줄로 흐르니 이름표를 크게 */
-  body.tv .dbelt .ncard .tl { font-size: 2.3vw; }
-  body.tv .dbelt .empty-txt { font-size: 2.4vw; }
+  body.tv .tpanes { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr); }
   body.tv .pdots i { width: 1vw; height: 1vw; }
 
   body.tv .side-stats { gap: 1.6vw; }
@@ -980,15 +981,13 @@ tr:last-child td { border-bottom: 0; }
           <div class="gymnote" id="sGymNote" hidden>바퀴는 운동장 기준이에요<br>강당 5바퀴 = 운동장 1바퀴</div>
           <div class="gbars" id="sGrades"></div>
         </div>
-        <div class="side-card top-card">
-          <h3>이번 주 많이 달린 친구</h3>
-          <!-- TV 세로에서는 옆 [학년별] 칸 높이에 맞추고, 넘치면 목록 글씨를 함께 줄여 칸에 맞춘다 (fitTop) -->
-          <div class="topwrap"><ol class="toplist" id="sTop"></ol></div>
-        </div>
-        <div class="side-card faster-card daytop-card">
-          <!-- 오늘 많이 달린 친구 1~5등: 학년 색 이름표가 오른쪽에서 왼쪽으로 끊김 없이 흐른다 (1등이 앞장). 오늘 기록이 없으면 마지막 달린 날 -->
-          <h3 id="sDayTitle">오늘 많이 달린 친구</h3>
-          <div class="dtrack" id="sDayTrack"><div class="dbelt" id="sDayBelt"></div></div>
+        <div class="side-card top-card" id="topCard">
+          <!-- 이번 주 / 오늘 많이 달린 친구: 같은 칸에서 8초마다 번갈아 (배경색으로 구분: 이번 주 초록, 오늘 주황).
+               오늘 기록이 없으면 '수요일에 많이 달린 친구'처럼 마지막 달린 날. TV 세로에서는 [학년별] 칸 높이에 맞추고 넘치면 글씨를 함께 줄인다 (fitTop) -->
+          <div class="tpanes">
+            <div class="tpane on" id="tpWeek"><h3>이번 주 많이 달린 친구</h3><div class="topwrap"><ol class="toplist" id="sTop"></ol></div></div>
+            <div class="tpane" id="tpDay"><h3 id="sDayTitle">오늘 많이 달린 친구</h3><div class="topwrap"><ol class="toplist" id="sDayTop"></ol></div></div>
+          </div>
         </div>
         <div class="updated" id="sUpdated"></div>
       </aside>
@@ -1910,7 +1909,7 @@ window.NBPix = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '115';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '116';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -4766,60 +4765,67 @@ window.NBPix = (function () {
   window.nbRecordTest = function (on) {   // 미리보기에서 시험: nbRecordTest(true) → 신기록 모습 + 폭죽, nbRecordTest(false) → 신기록까지
     renderRecord({ m: on ? 25600 : 30000, date: '' }, 26880, 320); if (on) cardBurst();
   };
-  /* ── 오늘 많이 달린 친구 1~5등 ──
+  /* ── 오늘 많이 달린 친구 1~5등 (이번 주 칸과 번갈아) ──
      바퀴는 운동장 기준(강당 5바퀴 = 1바퀴). 같은 바퀴는 같은 등수(1등 여러 명이면 다음은 2등), 5등까지.
-     오늘 아직 바퀴가 없으면(아침 전·쉬는 날) 바퀴가 있는 마지막 날을 '월요일에 많이 달린 친구'처럼 보여 준다.
-     이름표는 '빨라진 친구'에 쓰던 학년 색 이름표, 아래에 '1등 · 6바퀴' */
-  var dayTopKey = '';
+     오늘 아직 바퀴가 없으면(아침 전·쉬는 날) 바퀴가 있는 마지막 날을 '수요일에 많이 달린 친구'처럼. 기록이 아예 없으면 이번 주 칸만 */
+  /* 등수 자리의 달리는 초코: 등수 숫자 대신 초코가 달리는 빠르기로 순서를 보여 준다 (경쟁심을 덜 부르게).
+     위 줄일수록 빠르게, 맨 아래 줄도 분명히 달리는 모습 (그림 한 장 넘기는 간격 64·88·112·136·160ms). 그날 착장 그대로 */
+  var RANK_MS = [64, 88, 112, 136, 160];   // 2026-11-26: 전체를 20% 빠르게
+  function rankDog(i) {
+    return '<span class="p"><img class="rdog" data-r="' + i + '" src="' + (dogURLs[i % dogURLs.length] || '') + '" alt="' + (i + 1) + '번째"></span>';
+  }
+  (function () {
+    var t0 = performance.now();
+    setInterval(function () {
+      if (S.view !== 'tv' || document.hidden || !dogURLs.length) return;
+      var now = performance.now() - t0;
+      Array.prototype.forEach.call(document.querySelectorAll('.toplist img.rdog'), function (im) {
+        var r = Number(im.getAttribute('data-r')) || 0, f = (Math.floor(now / RANK_MS[r] ) + r) % dogURLs.length, u = dogURLs[f];
+        if (im.getAttribute('src') !== u) im.setAttribute('src', u);
+      });
+    }, 16);   // 간격이 고르게 보이도록 자주 확인 (그림은 바뀔 때만 바꾼다)
+  })();
+  var dayHas = false;
   function renderDayTop(d, roster, per, trackM) {
     var dt = d.dayTop, today = todayStr();
     if (!dt) {   // 예전 서버(dayTop 없음): 오늘 기록만
       var mm = {}; Object.keys(per || {}).forEach(function (id) { if (per[id].todayM > 0) mm[id] = per[id].todayM; });
       dt = { date: Object.keys(mm).length ? today : '', today: today, m: mm };
     }
-    var byId = {}; (roster || []).forEach(function (p) { byId[p.id] = p; });
-    var rows = Object.keys(dt.m || {}).filter(function (id) { return byId[id]; }).map(function (id) { return { p: byId[id], laps: Math.round(dt.m[id] / trackM) }; })
-      .filter(function (r) { return r.laps > 0; });
-    var order = {}; (roster || []).forEach(function (p, i) { order[p.id] = i; });
-    rows.sort(function (a, b) { return (b.laps - a.laps) || (order[a.p.id] - order[b.p.id]); });
-    var ranks = [], rk = {};
-    rows.forEach(function (r) { if (!(r.laps in rk)) { rk[r.laps] = ranks.length + 1; ranks.push(r.laps); } });
-    rows = rows.filter(function (r) { return rk[r.laps] <= 5; });
-    // 제목: 오늘 / 일주일 안이면 '월요일에' / 더 전이면 '11월 3일에'
+    var groups = {};
+    (roster || []).forEach(function (p) {
+      var laps = Math.round(((dt.m || {})[p.id] || 0) / trackM);
+      if (laps > 0) (groups[laps] = groups[laps] || []).push(p.name);
+    });
+    var ranks = Object.keys(groups).map(Number).sort(function (a, b) { return b - a; }).slice(0, 5);
+    dayHas = ranks.length > 0;
+    // 제목: 오늘 / 일주일 안이면 '수요일에' / 더 전이면 '11월 3일에'
     var title = '오늘 많이 달린 친구';
-    if (rows.length && dt.date && dt.date !== (dt.today || today)) {
+    if (dayHas && dt.date && dt.date !== (dt.today || today)) {
       var p = dt.date.split('-').map(Number), x = new Date(p[0], p[1] - 1, p[2]), t = new Date(), gap = Math.round((new Date(t.getFullYear(), t.getMonth(), t.getDate()) - x) / 86400000);
       title = (gap < 7 ? '일월화수목금토'.charAt(x.getDay()) + '요일에' : p[1] + '월 ' + p[2] + '일에') + ' 많이 달린 친구';
     }
     $('sDayTitle').textContent = title;
-    var set = rows.map(function (r) { return gradeChip(r.p, rk[r.laps] + '등 · ' + r.laps + '바퀴'); }).join('');
-    var key = title + '|' + set;
-    if (key === dayTopKey && $('sDayBelt').classList.contains('flow') === !!rows.length) return;   // 그대로면 흐르던 띠를 끊지 않는다
-    dayTopKey = key;
-    var belt = $('sDayBelt');
-    belt.classList.remove('flow');
-    if (!rows.length) { belt.innerHTML = '<span class="empty-txt">오늘 첫 기록을 기다리고 있어요.</span>'; return; }
-    layoutDayBelt(set);
+    $('sDayTop').innerHTML = ranks.map(function (laps, i) {
+      return '<li>' + rankDog(i) + '<span class="n">' + groups[laps].map(esc).join(', ') +
+        '</span><span class="v num">' + laps + '바퀴</span></li>';
+    }).join('');
+    if (!dayHas) showTopPane(false);
+    fitTop();
   }
-  // 한 벌이 칸보다 짧으면 칸을 채울 만큼 되풀이한 뒤, 그 묶음을 두 벌 이어 붙여 반만큼 흐르게 (끝과 처음이 이어진다)
-  function layoutDayBelt(set) {
-    var belt = $('sDayBelt'), track = $('sDayTrack'); if (!belt || !track) return;
-    belt.classList.remove('flow');
-    belt.innerHTML = set;
-    var one = belt.scrollWidth, W = track.clientWidth;
-    if (!one || !W) { belt.innerHTML = set + set; belt.style.setProperty('--dur', '20s'); belt.classList.add('flow'); return; }
-    var k = Math.max(1, Math.ceil(W / one)), group = new Array(k + 1).join(set);
-    belt.innerHTML = group + group;
-    // 빠르기: 칸 폭을 약 12초에 지나간다 (TV 1030px이면 초당 약 86px)
-    belt.style.setProperty('--dur', Math.max(6, (one * k) / (W / 12)).toFixed(1) + 's');
-    void belt.offsetWidth; belt.classList.add('flow');
+  function showTopPane(day) {
+    $('tpWeek').classList.toggle('on', !day); $('tpDay').classList.toggle('on', day);
+    $('topCard').classList.toggle('day', day);
   }
-  window.addEventListener('resize', function () { if (S.view === 'tv' && dayTopKey && $('sDayBelt').classList.contains('flow')) { dayTopKey = ''; if (lastBoard) try { renderDayTop(lastBoard, lastBoard.roster || [], lastBoard.per || {}, (lastBoard.settings || {}).trackM || 320); } catch (e) {} } });
-  window.nbDayTopTest = function (n, date) {   // 미리보기 시험: nbDayTopTest(12) → 12명 기록, nbDayTopTest(0) → 기다리는 문구, nbDayTopTest(8, '2026-11-23') → 월요일에
+  setInterval(function () {   // 8초마다 이번 주 ↔ 오늘
+    if (document.hidden || !dayHas) return;
+    showTopPane(!$('tpDay').classList.contains('on'));
+  }, 8000);
+  window.nbDayTopTest = function (n, date) {   // 미리보기 시험: nbDayTopTest(12) → 오늘 12명, nbDayTopTest(8, '2026-11-25') → 수요일에, nbDayTopTest(0) → 이번 주만
     var roster = (lastBoard && lastBoard.roster) || [], m = {};
     roster.slice(0, n).forEach(function (p, i) { m[p.id] = 320 * (9 - i % 6); });
-    dayTopKey = '';
     renderDayTop({ dayTop: { date: n ? (date || todayStr()) : '', today: todayStr(), m: m } }, roster, {}, 320);
+    if (n) showTopPane(true);
   };
   /* ── 옆 칸: 학년별, 이번 주 친구 ── */
   function renderSide(roster, per, trackM) {
@@ -4848,14 +4854,15 @@ window.NBPix = (function () {
     });
     var ranks = Object.keys(groups).map(Number).sort(function (a, b) { return b - a; }).slice(0, 5);
     $('sTop').innerHTML = ranks.length ? ranks.map(function (laps, i) {
-      return '<li><span class="p">' + (i + 1) + '등</span><span class="n">' + groups[laps].map(esc).join(', ') +
+      return '<li>' + rankDog(i) + '<span class="n">' + groups[laps].map(esc).join(', ') +
         '</span><span class="v num">' + laps + '바퀴</span></li>';
     }).join('') : '<li class="e"><span class="empty-txt">이번 주 첫 기록을 기다리고 있어요.</span></li>';
     fitTop();
   }
   // 많이 달린 친구 목록이 칸(TV 세로: [학년별] 칸 높이)을 넘치면 등수·이름·바퀴 글씨를 같은 비율로 줄여 딱 맞춘다. 최소 크기 없음
-  function fitTop() {
-    var ol = $('sTop'), w = ol && ol.parentNode; if (!w) return;
+  function fitTop() { ['sTop', 'sDayTop'].forEach(function (id) { fitList($(id)); }); }
+  function fitList(ol) {
+    var w = ol && ol.parentNode; if (!w) return;
     ol.style.setProperty('--tk', '1');
     if (getComputedStyle(ol).position !== 'absolute') return;   // 칸이 위아래로 쌓이는 화면은 그냥 늘어남
     var H = w.clientHeight; if (!H || ol.offsetHeight <= H) return;
