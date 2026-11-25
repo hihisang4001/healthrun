@@ -622,6 +622,20 @@ body.tv .gb-head .map-zoom { font-size: clamp(14px, 1.9vmin, 30px); }
 .t-card { background: var(--card); border: 1px solid var(--rule); border-radius: 18px; padding: 18px 20px; margin-bottom: 16px; }
 .t-card h2 { font-size: 20px; font-weight: 900; margin: 0 0 14px; display: flex; align-items: baseline; gap: 4px 10px; flex-wrap: wrap; }
 .t-card h3 { font-size: 15px; font-weight: 900; margin: 0 0 10px; }
+/* 이달의 시상 */
+.aw-note { font-size: 13px; color: var(--ink-soft); margin: -4px 0 12px; }
+.aw-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.aw-g { border: 1px solid var(--rule); border-radius: 14px; padding: 12px 14px; }
+.aw-g h3 { margin: 0 0 8px; font-size: 16px; font-weight: 900; }
+.aw-row { display: grid; grid-template-columns: 6.6em minmax(0, 1fr); gap: 6px; padding: 5px 0; border-top: 1px dashed #E3E7E1; font-size: 14px; align-items: baseline; }
+.aw-row:first-of-type { border-top: 0; }
+.aw-row .k { font-weight: 800; white-space: nowrap; }
+.aw-row .k i { display: inline-block; width: .7em; height: .7em; border-radius: 50%; margin-right: 4px; vertical-align: 0; }
+.aw-row .v { word-break: keep-all; }
+.aw-row .v small { color: var(--ink-soft); }
+.aw-row .none { color: var(--ink-soft); }
+.aw-actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.aw-actions small { color: var(--ink-soft); }
 .t-card h2 small, .t-card h3 small { font-size: 13px; font-weight: 500; color: var(--ink-soft); }
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 18px; }
 .kpi { background: var(--paper); border-radius: 14px; padding: 12px 14px; min-width: 0; }
@@ -1095,6 +1109,12 @@ tr:last-child td { border-bottom: 0; }
           <span><b class="plc t">운</b> 운동장 <b class="plc g">강</b> 강당 (날짜 아래)</span>
         </div>
         <div class="att-scroll" id="tAttBox"><table class="att" id="tAtt"></table></div>
+      </section>
+
+      <section class="t-card">
+        <h2>이달의 시상 <small>학년군(1·2 / 3·4 / 5·6)별 · 다음 달 첫 달리기 날에 시상 · 학생 화면에는 나오지 않아요</small></h2>
+        <div class="t-filter" id="tAwMonths"></div>
+        <div id="tAwards"></div>
       </section>
     </div>
   </div>
@@ -1918,7 +1938,7 @@ window.NBPix = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '121';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '122';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -5351,6 +5371,11 @@ window.NBPix = (function () {
       ['tAbsent', 'tWatch', 'tAtt'].forEach(function (id) {
         $(id).addEventListener('click', function (ev) { var b = ev.target.closest('[data-id]'); if (b) openDetail(b.getAttribute('data-id')); });
       });
+      $('tAwMonths').addEventListener('click', function (ev) {
+        var b = ev.target.closest('button[data-m]'); if (!b) return;
+        T.awMonth = b.getAttribute('data-m'); renderAwards();
+      });
+      $('tAwards').addEventListener('click', function (ev) { if (ev.target.closest('#awPrint')) printAwardStickers(); });
       $('dClose').addEventListener('click', function () { $('tDlg').close(); });
       $('tDlg').addEventListener('click', function (ev) { if (ev.target === $('tDlg')) $('tDlg').close(); });
       T.period = load('nb_tperiod', 'week');
@@ -5364,6 +5389,7 @@ window.NBPix = (function () {
       $('tMsg').hidden = true; $('tBody').hidden = false;
       $('tUpdated').textContent = (d.updated || '') + ' 기준';
       renderTeachToday(); renderPeriod();
+      try { renderAwards(); } catch (e) { window.nbShowErr('이달의 시상', e); }
       if ($('tDlg').open && T.dlgId) openDetail(T.dlgId);
     }, function (e) {
       var msg = String(e && e.message || e);
@@ -5373,6 +5399,96 @@ window.NBPix = (function () {
         : '기록을 불러오지 못했어요. 인터넷 연결을 확인해 주세요.' + (T.data ? ' (지난 기록을 보여 주는 중)' : '');
     });
   }
+
+  /* ── 이달의 시상 (docs/월말 시상 계획.md) ──
+     기준 달성(누구나): 꼬박꼬박상 = 그 달 활동일 결석 0번('기타'는 빼고 셈), 바퀴 목표 동·은·금 = 하루 목표 × 그 달 활동일.
+     특별상(학년군별 1명, 같은 기록이면 모두): 열정 러너상 = 그 달 바퀴 가장 많이, 무럭무럭상 = 지난달보다 하루 평균 바퀴가 가장 많이 늘어남
+     (두 달 모두 2일 이상 나온 친구, 열정 러너상을 받은 친구는 빼고 다음 친구에게). 바퀴는 운동장 기준(강당 5바퀴 = 1바퀴).
+     활동일 = 그 달에 기록이 있는 날 (휴업일·방학은 저절로 빠짐) */
+  var AW_GROUPS = [{ k: 'g12', name: '1·2학년', has: [1, 2], goal: [3, 4, 6] }, { k: 'g34', name: '3·4학년', has: [3, 4], goal: [3, 5, 7] }, { k: 'g56', name: '5·6학년', has: [5, 6], goal: [4, 6, 8] }];
+  var AW_TIER = [{ k: 'bronze', name: '동', col: '#B87333' }, { k: 'silver', name: '은', col: '#9AA3AD' }, { k: 'gold', name: '금', col: '#D4A017' }];
+  function monthDates(ym) { return allDates().filter(function (d) { return d.slice(0, 7) === ym; }); }
+  function prevYm(ym) { var y = +ym.slice(0, 4), m = +ym.slice(5, 7) - 1; if (m < 1) { m = 12; y--; } return y + '-' + ('0' + m).slice(-2); }
+  function calcAwards(ym) {
+    var roster = T.data.roster || [], dates = monthDates(ym), pdates = monthDates(prevYm(ym));
+    return AW_GROUPS.map(function (G) {
+      var kids = roster.filter(function (p) { return G.has.indexOf(gradeNum(p)) >= 0; }).map(function (p) {
+        var s = sumStats(p.id, dates), ps = sumStats(p.id, pdates), laps = Math.round(lapsOf(s.m));
+        var tier = -1; G.goal.forEach(function (g, i) { if (laps >= g * dates.length) tier = i; });
+        var grow = s.y >= 2 && ps.y >= 2 ? lapsOf(s.m) / s.y - lapsOf(ps.m) / ps.y : null;
+        return { p: p, laps: laps, perfect: dates.length > 0 && s.y > 0 && s.x === 0, tier: tier, grow: grow, avg: s.y ? lapsOf(s.m) / s.y : 0, pavg: ps.y ? lapsOf(ps.m) / ps.y : 0 };
+      });
+      var maxL = Math.max.apply(null, kids.map(function (r) { return r.laps; }).concat([0]));
+      var passion = maxL > 0 ? kids.filter(function (r) { return r.laps === maxL; }) : [];
+      var rest = kids.filter(function (r) { return passion.indexOf(r) < 0 && r.grow != null && r.grow > 0; });
+      var maxG = Math.max.apply(null, rest.map(function (r) { return Math.round(r.grow * 10) / 10; }).concat([0]));
+      var grow = maxG > 0 ? rest.filter(function (r) { return Math.round(r.grow * 10) / 10 === maxG; }) : [];
+      return { G: G, kids: kids, perfect: kids.filter(function (r) { return r.perfect; }),
+        tiers: AW_TIER.map(function (t, i) { return kids.filter(function (r) { return r.tier === i; }); }), passion: passion, grow: grow, goals: G.goal.map(function (g) { return g * dates.length; }) };
+    });
+  }
+  function renderAwards() {
+    var all = allDates(); if (!all.length) { $('tAwMonths').innerHTML = ''; $('tAwards').innerHTML = '<div class="aw-note">아직 기록이 없어요.</div>'; return; }
+    var months = []; all.forEach(function (d) { var m = d.slice(0, 7); if (months.indexOf(m) < 0) months.push(m); });
+    months = months.slice(-6);
+    var now = T.data.today.slice(0, 7), def = +T.data.today.slice(8, 10) <= 7 && months.indexOf(prevYm(now)) >= 0 ? prevYm(now) : months[months.length - 1];
+    if (!T.awMonth || months.indexOf(T.awMonth) < 0) T.awMonth = def;
+    var ym = T.awMonth, label = +ym.slice(5, 7) + '월', dates = monthDates(ym);
+    $('tAwMonths').innerHTML = months.map(function (m) {
+      return '<button type="button" data-m="' + m + '" aria-pressed="' + (m === ym) + '">' + (+m.slice(5, 7)) + '월' + (m === now ? ' (진행 중)' : '') + '</button>';
+    }).join('');
+    var res = calcAwards(ym), names = function (list, tail) {
+      return list.length ? list.map(function (r) { return '<b>' + esc(r.p.name) + '</b>' + (tail ? ' <small>' + tail(r) + '</small>' : ''); }).join(', ') : '<span class="none">없음</span>';
+    };
+    var pd = monthDates(prevYm(ym)).length;
+    $('tAwards').innerHTML = '<div class="aw-note">' + label + ' 활동일 ' + dates.length + '일' + (ym === now ? ' (아직 끝나지 않은 달이라 바뀔 수 있어요)' : '') +
+      (pd ? '' : ' · 지난달 기록이 없어 무럭무럭상은 다음 달부터') + '</div><div class="aw-grid">' + res.map(function (R) {
+      return '<div class="aw-g"><h3>' + R.G.name + '</h3>' +
+        '<div class="aw-row"><span class="k"><i style="background:#2E7D4F"></i>꼬박꼬박상</span><span class="v">' + names(R.perfect) + '</span></div>' +
+        AW_TIER.slice().reverse().map(function (t) {
+          var i = AW_TIER.indexOf(t);
+          return '<div class="aw-row"><span class="k"><i style="background:' + t.col + '"></i>' + t.name + ' <small>' + R.goals[i] + '바퀴</small></span><span class="v">' + names(R.tiers[i], function (r) { return r.laps + '바퀴'; }) + '</span></div>';
+        }).join('') +
+        '<div class="aw-row"><span class="k"><i style="background:#D2412E"></i>열정 러너상</span><span class="v">' + names(R.passion, function (r) { return r.laps + '바퀴'; }) + '</span></div>' +
+        '<div class="aw-row"><span class="k"><i style="background:#4CAF50"></i>무럭무럭상</span><span class="v">' + names(R.grow, function (r) { return '하루 ' + f1(r.pavg) + ' → ' + f1(r.avg) + '바퀴'; }) + '</span></div></div>';
+    }).join('') + '</div><div class="aw-actions"><button type="button" id="awPrint">' + label + ' 스티커 인쇄</button>' +
+      '<small>원형 40mm 라벨지(A4 4칸 × 6줄). 처음에는 보통 종이에 시험 인쇄해서 라벨지 위에 겹쳐 보세요.</small></div>';
+  }
+  // 스티커 그림: 상마다 다른 초코 (그날 착장과 상관없이)
+  function awardDog(kind) {
+    var c = kind === 'perfect' ? outfitCanvas(0, false, '', 'sit') : kind === 'grow' ? outfitCanvas(0, false, 'sprout', 'sit')
+      : kind === 'passion' ? outfitCanvas(1, false, 'crown', 'run') : outfitCanvas(1, false, '', 'run');
+    return c.toDataURL();
+  }
+  function printAwardStickers() {
+    var ym = T.awMonth, label = +ym.slice(5, 7) + '월', res = calcAwards(ym), items = [];
+    var img = { perfect: awardDog('perfect'), tier: awardDog('tier'), grow: awardDog('grow'), passion: awardDog('passion') };
+    res.forEach(function (R) {
+      R.perfect.forEach(function (r) { items.push({ n: r.p.name, a: '꼬박꼬박상', c: '#2E7D4F', i: img.perfect }); });
+      AW_TIER.forEach(function (t, i) { R.tiers[i].forEach(function (r) { items.push({ n: r.p.name, a: '바퀴 ' + t.name + '메달', c: t.col, i: img.tier }); }); });
+      R.passion.forEach(function (r) { items.push({ n: r.p.name, a: '열정 러너상', c: '#D2412E', i: img.passion }); });
+      R.grow.forEach(function (r) { items.push({ n: r.p.name, a: '무럭무럭상', c: '#4CAF50', i: img.grow }); });
+    });
+    if (!items.length) { alert(label + '에는 받을 친구가 아직 없어요.'); return; }
+    var w = window.open('', '_blank'); if (!w) { alert('팝업이 막혀 있어요. 이 사이트의 팝업을 허용해 주세요.'); return; }
+    var cells = items.map(function (it) {
+      return '<div class="st" style="border-color:' + it.c + ';@POS@"><div class="m" style="color:' + it.c + '">' + label + '</div><img src="' + it.i + '" alt=""><div class="a" style="color:' + it.c + '">' + esc(it.a) + '</div><div class="n">' + esc(it.n) + '</div></div>';
+    });
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>' + label + ' 달리기 시상 스티커</title><style>' +
+      '@page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0;font-family:"Noto Sans KR",sans-serif}' +
+      '.bar{padding:10px 14px;font-size:14px;background:#F2F5F0;border-bottom:1px solid #ccc}.bar input{width:4.5em}.bar button{font-size:14px;padding:4px 12px;margin-left:8px}' +
+      '.sheet{width:210mm;height:297mm;position:relative;page-break-after:always;overflow:hidden}' +
+      '.st{position:absolute;width:40mm;height:40mm;border-radius:50%;border:1.6mm solid;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.05}' +
+      '.st .m{font-weight:900;font-size:3.4mm}.st img{width:21mm;image-rendering:pixelated;margin:-1mm 0 .6mm}.st .a{font-weight:900;font-size:3.3mm;white-space:nowrap}.st .n{font-weight:700;font-size:3.2mm;margin-top:.5mm;white-space:nowrap}' +
+      '@media print{.bar{display:none}}</style></head><body>' +
+      '<div class="bar">왼쪽 여백 <input id="ml" type="number" step="0.5" value="14.5">mm · 위 여백 <input id="mt" type="number" step="0.5" value="14.75">mm · 가로 간격 <input id="px" type="number" step="0.5" value="47">mm · 세로 간격 <input id="py" type="number" step="0.5" value="45.5">mm' +
+      '<button onclick="lay()">다시 맞추기</button><button onclick="print()">인쇄</button> <small>(라벨지 칸 위치에 맞게 숫자를 바꾸세요. 인쇄 설정에서 배율 100%·여백 없음)</small></div><div id="pages"></div>' +
+      '<script>var C=' + JSON.stringify(cells).replace(/<\//g, '<\\/') + ';' +
+      'function lay(){var ml=+ml_.value,mt=+mt_.value,px=+px_.value,py=+py_.value,h="";for(var i=0;i<C.length;i+=24){h+="<div class=sheet>";for(var j=0;j<24&&i+j<C.length;j++){var c=j%4,r=Math.floor(j/4);h+=C[i+j].replace("@POS@","left:"+(ml+c*px)+"mm;top:"+(mt+r*py)+"mm");}h+="</div>";}document.getElementById("pages").innerHTML=h;}' +
+      'var ml_=document.getElementById("ml"),mt_=document.getElementById("mt"),px_=document.getElementById("px"),py_=document.getElementById("py");lay();<\/script></body></html>');
+    w.document.close();
+  }
+  window.nbAwardTest = function (ym) { T.awMonth = ym || T.awMonth; renderAwards(); return calcAwards(T.awMonth).map(function (R) { return R.G.name + ': 꼬박 ' + R.perfect.length + ', 금 ' + R.tiers[2].length + ', 은 ' + R.tiers[1].length + ', 동 ' + R.tiers[0].length + ', 열정 ' + R.passion.map(function (r) { return r.p.name; }) + ', 무럭 ' + R.grow.map(function (r) { return r.p.name; }); }); };
 
   /* 오늘 운영 점검: 오늘 기록이 없으면 가장 최근 활동일을 보여 준다 */
   // (체크 화면의 renderToday와 이름이 겹치면 체크 화면이 고장 나서 이름을 따로 둔다)
