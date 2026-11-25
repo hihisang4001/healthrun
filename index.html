@@ -666,6 +666,9 @@ table.t-tbl { min-width: 0; font-size: 14px; }
 .t-tbl th.desc::after { content: ' ▼'; opacity: 1; }
 .t-tbl tbody tr:hover { background: #F7F9F5; }
 /* 학생별 기록 제목 설명: ⓘ 표시 + 마우스를 올리면 뜨는 상자 (자리는 JS가 잡는다) */
+.t-tbl th.grp { text-align: center; padding-bottom: 2px; border-bottom: 2px solid #C9D3CC; }
+.t-tbl th.grp small { font-weight: 500; color: var(--ink-soft); }
+.t-tbl th.grp.gym, .t-tbl th[data-k="glap"], .t-tbl td.gcol { border-left: 1px solid #DDE4DF; }
 .t-tbl th .tip-i { display: inline-block; margin-left: 3px; font-size: .85em; font-weight: 700; color: #6B7A72; }
 .th-tip { position: fixed; z-index: 50; max-width: 300px; padding: 10px 13px; border-radius: 10px; background: #fff; color: var(--ink);
   border: 1.5px solid #C9D3CC; box-shadow: 0 6px 18px rgba(0,0,0,.14); font-size: 14px; font-weight: 500; line-height: 1.55;
@@ -1896,7 +1899,7 @@ window.NBPix = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '112';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '113';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -5045,13 +5048,13 @@ window.NBPix = (function () {
     var st = T.data.settings || {};
     return l[1] ? l[0] * (st.trackM || 320) / (st.gymM || 320) : l[0];
   }
-  function lapStats(id, dates) {
+  // gym이 아니면 운동장 바퀴만, gym이면 강당 체크만 (강당은 다섯 바퀴 실제 시간 그대로, 운동장으로 바꾸지 않는다)
+  function lapStats(id, dates, gym) {
     var all = [], best = null, bestDate = '', perDay = [];
     dates.forEach(function (dt) {
-      // 랩타임은 운동장 기록만 쓴다 (강당 체크는 빼고)
-      var arr = (((T.data.laps || {})[dt] || {})[id] || []).filter(function (l) { return !l[1]; });
+      var arr = (((T.data.laps || {})[dt] || {})[id] || []).filter(function (l) { return gym ? !!l[1] : !l[1]; });
       if (!arr.length) return;
-      var secs = arr.map(lapSec), sum = 0, b = Infinity;
+      var secs = arr.map(gym ? function (l) { return l[0]; } : lapSec), sum = 0, b = Infinity;
       secs.forEach(function (s) { sum += s; if (s < b) b = s; all.push(s); });
       if (best == null || b < best) { best = b; bestDate = dt; }
       perDay.push({ date: dt, n: secs.length, avg: sum / secs.length, best: b });
@@ -5191,7 +5194,7 @@ window.NBPix = (function () {
         tbl.addEventListener('mouseover', function (ev) {
           var th = ev.target.closest('th[data-tip]');
           if (!th) { hide(); return; }
-          tip.innerHTML = '<b>' + esc(th.firstChild.textContent) + '</b>' + esc(th.getAttribute('data-tip'));
+          tip.innerHTML = '<b>' + esc(th.getAttribute('data-tipt') || th.firstChild.textContent) + '</b>' + esc(th.getAttribute('data-tip'));
           tip.hidden = false;
           var r = th.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
           var x = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, innerWidth - w - 8));
@@ -5205,7 +5208,7 @@ window.NBPix = (function () {
       })();
       $('tStudents').addEventListener('click', function (ev) {
         var th = ev.target.closest('th[data-k]');
-        if (th) { var k = th.getAttribute('data-k'); T.sort = { key: k, dir: T.sort.key === k ? -T.sort.dir : (k === 'no' || k === 'name' || k === 'grade' || k === 'lap' || k === 'best' ? 1 : -1) }; renderPeriod(); return; }
+        if (th) { var k = th.getAttribute('data-k'); T.sort = { key: k, dir: T.sort.key === k ? -T.sort.dir : (k === 'no' || k === 'name' || k === 'grade' || k === 'lap' || k === 'best' || k === 'glap' || k === 'gbest' ? 1 : -1) }; renderPeriod(); return; }
         var b = ev.target.closest('[data-id]'); if (b) openDetail(b.getAttribute('data-id'));
       });
       ['tAbsent', 'tWatch', 'tAtt'].forEach(function (id) {
@@ -5350,7 +5353,7 @@ window.NBPix = (function () {
     var list = roster.map(function (p, i) {
       var s0 = per[p.id], day = s0.y ? lapsOf(s0.m) / s0.y : null, chg = null;
       if (ppDates && day != null) { var ps0 = sumStats(p.id, ppDates); if (ps0.y) chg = day - lapsOf(ps0.m) / ps0.y; }
-      return { p: p, i: i, s: s0, day: day, chg: chg, last: lastRun(p.id, all), lap: lapStats(p.id, dates) };
+      return { p: p, i: i, s: s0, day: day, chg: chg, last: lastRun(p.id, all), lap: lapStats(p.id, dates), glap: lapStats(p.id, dates, true) };
     })
       .filter(function (r) { return T.grade === 'all' || r.p.grade === T.grade; });
 
@@ -5365,6 +5368,8 @@ window.NBPix = (function () {
         case 'lap': return r.lap.avg == null ? 99999 : r.lap.avg; case 'last': return r.last;
         case 'day': return r.day == null ? -1 : r.day; case 'chg': return r.chg == null ? -999 : r.chg;
         case 'best': return r.lap.best == null ? 99999 : r.lap.best;
+        case 'glap': return r.glap.avg == null ? 99999 : r.glap.avg;
+        case 'gbest': return r.glap.best == null ? 99999 : r.glap.best;
         default: return r.i;
       }
     };
@@ -5377,16 +5382,29 @@ window.NBPix = (function () {
         ? PERIOD_NAME[T.period] + ' 하루 평균이 ' + prevName + '보다 몇 바퀴 늘었는지(▲ 초록), 줄었는지(▼ 빨강) 보여 줘요. ' + prevName + '에 나온 날이 없으면 \'-\'예요.'
         : '\'' + PERIOD_NAME[T.period] + '\'에서는 비교할 앞 기간이 없어요. 오늘·이번 주·지난주·이번 달을 고르면 바로 앞 기간과 하루 평균을 비교해요.',
       lap: '운동장 한 바퀴에 걸린 시간의 평균이에요.',
-      best: '고른 기간에 운동장 한 바퀴를 가장 빨리 돈 시간이에요. 숫자에 마우스를 올리면 그 날짜가 보여요.'
+      best: '고른 기간에 운동장 한 바퀴를 가장 빨리 돈 시간이에요. 숫자에 마우스를 올리면 그 날짜가 보여요.',
+      glap: '강당 다섯 바퀴(체크 한 번)에 걸린 시간의 평균이에요.',
+      gbest: '고른 기간에 강당 다섯 바퀴를 가장 빨리 돈 시간이에요. 숫자에 마우스를 올리면 그 날짜가 보여요.'
     };
     var cols = [['no', '번호'], ['name', '이름'], ['grade', '학년'], ['rate', '출석률'],
-      ['laps', '바퀴 (거리)', 'r'], ['day', '하루 평균', 'r'], ['chg', ppDates ? prevName + ' 대비' : '변화', 'r'], ['lap', '평균 랩타임', 'r'], ['best', '최고 랩타임', 'r'], ['last', '마지막 참여', 'r']];
-    // 출석·결석은 학생 상세에서 (표에는 출석률만)
-    $('tStudents').innerHTML = '<thead><tr>' + cols.map(function (c) {
+      ['laps', '바퀴 (거리)', 'r'], ['day', '하루 평균', 'r'], ['chg', ppDates ? prevName + ' 대비' : '변화', 'r'], ['lap', '평균', 'r', '운동장 평균 랩타임'], ['best', '최고', 'r', '운동장 최고 랩타임'],
+      ['glap', '평균', 'r', '강당 평균 랩타임'], ['gbest', '최고', 'r', '강당 최고 랩타임'], ['last', '마지막 참여', 'r']];
+    // 랩타임 네 칸은 제목을 두 줄로: 위 '운동장 랩타임'·'강당 랩타임', 아래 '평균·최고'. 나머지 칸은 두 줄을 차지한다
+    var LAPK = { lap: 1, best: 1, glap: 1, gbest: 1 };
+    var thHtml = function (c, two) {
       var tip = TIPS[c[0]];
-      return '<th class="sort' + (c[2] ? ' r' : '') + (key === c[0] ? (dir > 0 ? ' asc' : ' desc') : '') + '" data-k="' + c[0] + '"' +
-        (tip ? ' data-tip="' + esc(tip) + '"' : '') + '>' + c[1] + (tip ? '<span class="tip-i" aria-hidden="true">ⓘ</span>' : '') + '</th>';
-    }).join('') + '</tr></thead><tbody>' + list.map(function (r) {
+      return '<th class="sort' + (c[2] ? ' r' : '') + (key === c[0] ? (dir > 0 ? ' asc' : ' desc') : '') + '" data-k="' + c[0] + '"' + (two ? ' rowspan="2"' : '') +
+        (tip ? ' data-tip="' + esc(tip) + '"' + (c[3] ? ' data-tipt="' + esc(c[3]) + '"' : '') : '') + '>' + c[1] + (tip ? '<span class="tip-i" aria-hidden="true">ⓘ</span>' : '') + '</th>';
+    };
+    var head1 = '', head2 = '';
+    cols.forEach(function (c) {
+      if (!LAPK[c[0]]) { head1 += thHtml(c, true); return; }
+      if (c[0] === 'lap') head1 += '<th class="grp" colspan="2">운동장 랩타임</th>';
+      if (c[0] === 'glap') head1 += '<th class="grp gym" colspan="2">강당 랩타임 <small>(5바퀴)</small></th>';
+      head2 += thHtml(c, false);
+    });
+    // 출석·결석은 학생 상세에서 (표에는 출석률만)
+    $('tStudents').innerHTML = '<thead><tr>' + head1 + '</tr><tr>' + head2 + '</tr></thead><tbody>' + list.map(function (r) {
       var s = r.s;
       return '<tr><td class="num">' + esc(r.p.id) + '</td><td><button type="button" class="nb" data-id="' + esc(r.p.id) + '">' + esc(r.p.name) + '</button></td>' +
         '<td>' + gdot(r.p.grade) + ' ' + esc(r.p.grade) + '</td>' +
@@ -5396,6 +5414,8 @@ window.NBPix = (function () {
         '<td class="r num">' + (r.chg == null ? '<span style="color:var(--ink-soft)">-</span>' : (function (c) { var x = Math.round(c * 10) / 10; return x === 0 ? '<span style="color:var(--ink-soft)">같음</span>' : '<b style="color:' + (x > 0 ? '#1E6B3A' : '#B3261E') + '">' + (x > 0 ? '▲ ' : '▼ ') + f1(Math.abs(x)) + '</b>'; })(r.chg)) + '</td>' +
         '<td class="r num" title="' + (r.lap.n ? '운동장 바퀴 ' + r.lap.n + '개 평균' : '') + '">' + secTxt(r.lap.avg) + '</td>' +
         '<td class="r num" title="' + (r.lap.bestDate ? mdw(r.lap.bestDate) : '') + '">' + secTxt(r.lap.best) + '</td>' +
+        '<td class="r num gcol" title="' + (r.glap.n ? '강당 체크 ' + r.glap.n + '번 평균' : '') + '">' + secTxt(r.glap.avg) + '</td>' +
+        '<td class="r num" title="' + (r.glap.bestDate ? mdw(r.glap.bestDate) : '') + '">' + secTxt(r.glap.best) + '</td>' +
         '<td class="r num">' + (r.last ? mdw(r.last) : '-') + '</td></tr>';
     }).join('') + '</tbody>';
 
@@ -5612,13 +5632,21 @@ window.NBPix = (function () {
           var slot = date === td ? 'now' : (date >= lws && date < ws) ? 'last' : null; if (!slot) return;
           Object.keys(L[date]).forEach(function (id) {
             L[date][id].forEach(function (l) {
-              var sec = l[1] ? l[0] * settings.trackM / settings.gymM : l[0], b = best[id] || (best[id] = {});
-              if (!b[slot] || sec < b[slot]) b[slot] = sec;
+              var bi = best[id] || (best[id] = {}), b = bi[l[1] ? 'g' : 't'] || (bi[l[1] ? 'g' : 't'] = {});   // 같은 장소끼리만
+              if (!b[slot] || l[0] < b[slot]) b[slot] = l[0];
             });
           });
         });
         var faster = [];
-        Object.keys(best).forEach(function (id) { var b = best[id]; if (b.last && b.now && b.now < b.last - 0.5 && b.now >= b.last / 2) faster.push({ id: id, last: Math.round(b.last), now: Math.round(b.now) }); });
+        Object.keys(best).forEach(function (id) {
+          var pick = null;
+          ['t', 'g'].forEach(function (pl) {
+            var b = best[id][pl];
+            if (!b || !(b.last && b.now && b.now < b.last - 0.5 && b.now >= b.last / 2)) return;
+            if (!pick || b.last - b.now > pick.last - pick.now) pick = { id: id, last: Math.round(b.last), now: Math.round(b.now), gym: pl === 'g' };
+          });
+          if (pick) faster.push(pick);
+        });
         faster.sort(function (a, b) { return (b.last - b.now) - (a.last - a.now); });
         return { url: '', roster: roster, route: route, settings: settings, per: per, faster: faster, weekGym: weekGym, praise: praise_(log, ws, td, settings.trackM), sessions: Object.keys(dates).length,
           weekStart: ws, updated: (now.getMonth() + 1) + '월 ' + now.getDate() + '일 ' + ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2) };
