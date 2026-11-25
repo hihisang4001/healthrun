@@ -459,6 +459,13 @@ img.emo { width: 1em; height: 1em; display: inline-block; vertical-align: -0.12e
 .ncard .nm { font-family: var(--body); font-weight: 700; font-size: clamp(15px, 1.25vw, 22px); line-height: 1.15; color: #111; white-space: nowrap; }   /* 굵은 제목 글꼴 대신 본문 글꼴 700으로 조금 얇게 */
 .ncard .tl { font-weight: 500; font-size: clamp(11px, .85vw, 15px); line-height: 1; white-space: nowrap; }
 .faster.ncards { display: flex; flex-wrap: wrap; gap: 6px; }
+/* 오늘 많이 달린 친구: 흐르는 띠 (같은 묶음을 두 벌 이어 붙이고 반만큼 움직여 끊김 없이) */
+.dtrack { overflow: hidden; position: relative; -webkit-mask-image: linear-gradient(90deg, transparent, #000 3%, #000 97%, transparent); mask-image: linear-gradient(90deg, transparent, #000 3%, #000 97%, transparent); }
+.dbelt { display: flex; width: max-content; will-change: transform; }
+.dbelt.flow { animation: dayBelt var(--dur, 20s) linear infinite; }
+.dbelt .ncard { margin-right: 10px; flex: none; }
+.dbelt .empty-txt { padding: 4px 0; }
+@keyframes dayBelt { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 .toplist .v { white-space: nowrap; }
 .toplist .g { color: var(--ink-soft); font-size: .78em; font-weight: 500; margin-left: 4px; }
 .toplist .v { font-weight: 700; }
@@ -502,6 +509,10 @@ body.tv.tv-scroll .gameboard { flex: none; }
   body.tv .ncard { border-width: .3vw; border-radius: 1vw; }
   body.tv .ncard .nm { font-size: 2.8vw; }
   body.tv .ncard .tl { font-size: 1.8vw; }
+  body.tv .dbelt .ncard { margin-right: 1.4vw; }
+  body.tv .dbelt .ncard .nm { font-size: 3.6vw; }   /* 한 줄로 흐르니 이름표를 크게 */
+  body.tv .dbelt .ncard .tl { font-size: 2.3vw; }
+  body.tv .dbelt .empty-txt { font-size: 2.4vw; }
   body.tv .pdots i { width: 1vw; height: 1vw; }
 
   body.tv .side-stats { gap: 1.6vw; }
@@ -974,10 +985,10 @@ tr:last-child td { border-bottom: 0; }
           <!-- TV 세로에서는 옆 [학년별] 칸 높이에 맞추고, 넘치면 목록 글씨를 함께 줄여 칸에 맞춘다 (fitTop) -->
           <div class="topwrap"><ol class="toplist" id="sTop"></ol></div>
         </div>
-        <div class="side-card faster-card">
-          <!-- 칭찬 블록: 오늘 더 빨리 (판이 여럿이면 10초마다 번갈아 (내용 없는 블록은 건너뜀) -->
-          <div class="praise" id="sPraise"></div>
-          <div class="pdots" id="sPraiseDots" aria-hidden="true"></div>
+        <div class="side-card faster-card daytop-card">
+          <!-- 오늘 많이 달린 친구 1~5등: 학년 색 이름표가 오른쪽에서 왼쪽으로 끊김 없이 흐른다 (1등이 앞장). 오늘 기록이 없으면 마지막 달린 날 -->
+          <h3 id="sDayTitle">오늘 많이 달린 친구</h3>
+          <div class="dtrack" id="sDayTrack"><div class="dbelt" id="sDayBelt"></div></div>
         </div>
         <div class="updated" id="sUpdated"></div>
       </aside>
@@ -1899,7 +1910,7 @@ window.NBPix = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '114';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '115';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -2745,7 +2756,7 @@ window.NBPix = (function () {
     // 강당 안내: 이번 주 강당 체크가 있으면 (예전 서버라 값이 없으면 늘 보여 준다)
     $('sGymNote').hidden = d.weekGym != null && !(d.weekGym > 0);
     try { renderSide(roster, per, trackM); } catch (e) { window.nbShowErr('학년·친구', e); }
-    try { renderPraise(d, roster); } catch (e) { window.nbShowErr('칭찬 블록', e); }
+    try { renderDayTop(d, roster, per, trackM); } catch (e) { window.nbShowErr('오늘 많이 달린 친구', e); }
     try { renderJourney(route, total / trackM, today / trackM, trackM); } catch (e) { window.nbShowErr('전국 일주', e); }
   }
 
@@ -4755,33 +4766,61 @@ window.NBPix = (function () {
   window.nbRecordTest = function (on) {   // 미리보기에서 시험: nbRecordTest(true) → 신기록 모습 + 폭죽, nbRecordTest(false) → 신기록까지
     renderRecord({ m: on ? 25600 : 30000, date: '' }, 26880, 320); if (on) cardBurst();
   };
-  function renderPraise(d, roster) {
+  /* ── 오늘 많이 달린 친구 1~5등 ──
+     바퀴는 운동장 기준(강당 5바퀴 = 1바퀴). 같은 바퀴는 같은 등수(1등 여러 명이면 다음은 2등), 5등까지.
+     오늘 아직 바퀴가 없으면(아침 전·쉬는 날) 바퀴가 있는 마지막 날을 '월요일에 많이 달린 친구'처럼 보여 준다.
+     이름표는 '빨라진 친구'에 쓰던 학년 색 이름표, 아래에 '1등 · 6바퀴' */
+  var dayTopKey = '';
+  function renderDayTop(d, roster, per, trackM) {
+    var dt = d.dayTop, today = todayStr();
+    if (!dt) {   // 예전 서버(dayTop 없음): 오늘 기록만
+      var mm = {}; Object.keys(per || {}).forEach(function (id) { if (per[id].todayM > 0) mm[id] = per[id].todayM; });
+      dt = { date: Object.keys(mm).length ? today : '', today: today, m: mm };
+    }
     var byId = {}; (roster || []).forEach(function (p) { byId[p.id] = p; });
-    var pr = d.praise || {}, chips = function (list, tail) {
-      // 학년별로 모아서(1→6학년, 같은 학년 안에서는 원래 순서), QR 카드와 같은 학년 색
-      var items = list.filter(function (f) { return byId[f.id]; }).map(function (f, i) { return { f: f, i: i, g: gradeNum(byId[f.id]) }; });
-      items.sort(function (a, b) { return (a.g - b.g) || (a.i - b.i); });
-      return '<div class="faster ncards">' + items.map(function (it) {
-        return gradeChip(byId[it.f.id], tail ? tail(it.f) : '');
-      }).join('') + '</div>';
-    };
-    var has = function (list) { return (list || []).some(function (f) { return byId[f.id]; }); };
-    var panes = [];
-    // 지난주보다 오늘 더 빨리: 이름 + 몇 초 빨라졌는지 (오늘 해당 친구가 없으면 건너뜀)
-    var fasterTxt = function (f) { var s = Math.round((f.last || 0) - (f.now || 0)); if (s < 1) return ''; return (s >= 60 ? Math.floor(s / 60) + '분 ' + (s % 60 ? s % 60 + '초' : '') : s + '초').trim() + ' 빨라짐'; };
-    if (has(d.faster)) panes.push('<h3>' + emo('⚡') + ' 지난주보다 오늘 더 빨리 달렸어요</h3>' + chips(d.faster, fasterTxt));
-    if (!panes.length) panes.push('<h3>' + emo('🌟') + ' 오늘의 칭찬</h3><div class="faster"><span class="none">오늘 누가 지난주보다 더 빨리 달릴까?</span></div>');
-    $('sPraise').innerHTML = panes.map(function (h, i) { return '<div class="pane' + (i === praiseIdx % panes.length ? ' on' : '') + '">' + h + '</div>'; }).join('');
-    $('sPraiseDots').innerHTML = panes.length > 1 ? panes.map(function (h, i) { return '<i' + (i === praiseIdx % panes.length ? ' class="on"' : '') + '></i>'; }).join('') : '';
+    var rows = Object.keys(dt.m || {}).filter(function (id) { return byId[id]; }).map(function (id) { return { p: byId[id], laps: Math.round(dt.m[id] / trackM) }; })
+      .filter(function (r) { return r.laps > 0; });
+    var order = {}; (roster || []).forEach(function (p, i) { order[p.id] = i; });
+    rows.sort(function (a, b) { return (b.laps - a.laps) || (order[a.p.id] - order[b.p.id]); });
+    var ranks = [], rk = {};
+    rows.forEach(function (r) { if (!(r.laps in rk)) { rk[r.laps] = ranks.length + 1; ranks.push(r.laps); } });
+    rows = rows.filter(function (r) { return rk[r.laps] <= 5; });
+    // 제목: 오늘 / 일주일 안이면 '월요일에' / 더 전이면 '11월 3일에'
+    var title = '오늘 많이 달린 친구';
+    if (rows.length && dt.date && dt.date !== (dt.today || today)) {
+      var p = dt.date.split('-').map(Number), x = new Date(p[0], p[1] - 1, p[2]), t = new Date(), gap = Math.round((new Date(t.getFullYear(), t.getMonth(), t.getDate()) - x) / 86400000);
+      title = (gap < 7 ? '일월화수목금토'.charAt(x.getDay()) + '요일에' : p[1] + '월 ' + p[2] + '일에') + ' 많이 달린 친구';
+    }
+    $('sDayTitle').textContent = title;
+    var set = rows.map(function (r) { return gradeChip(r.p, rk[r.laps] + '등 · ' + r.laps + '바퀴'); }).join('');
+    var key = title + '|' + set;
+    if (key === dayTopKey && $('sDayBelt').classList.contains('flow') === !!rows.length) return;   // 그대로면 흐르던 띠를 끊지 않는다
+    dayTopKey = key;
+    var belt = $('sDayBelt');
+    belt.classList.remove('flow');
+    if (!rows.length) { belt.innerHTML = '<span class="empty-txt">오늘 첫 기록을 기다리고 있어요.</span>'; return; }
+    layoutDayBelt(set);
   }
-  // 10초마다 다음 판으로
-  var praiseIdx = 0;
-  setInterval(function () {
-    var ps = document.querySelectorAll('#sPraise .pane'), ds = document.querySelectorAll('#sPraiseDots i');
-    if (ps.length < 2 || document.hidden) return;
-    praiseIdx = (praiseIdx + 1) % ps.length;
-    for (var i = 0; i < ps.length; i++) { ps[i].classList.toggle('on', i === praiseIdx); if (ds[i]) ds[i].classList.toggle('on', i === praiseIdx); }
-  }, 10000);
+  // 한 벌이 칸보다 짧으면 칸을 채울 만큼 되풀이한 뒤, 그 묶음을 두 벌 이어 붙여 반만큼 흐르게 (끝과 처음이 이어진다)
+  function layoutDayBelt(set) {
+    var belt = $('sDayBelt'), track = $('sDayTrack'); if (!belt || !track) return;
+    belt.classList.remove('flow');
+    belt.innerHTML = set;
+    var one = belt.scrollWidth, W = track.clientWidth;
+    if (!one || !W) { belt.innerHTML = set + set; belt.style.setProperty('--dur', '20s'); belt.classList.add('flow'); return; }
+    var k = Math.max(1, Math.ceil(W / one)), group = new Array(k + 1).join(set);
+    belt.innerHTML = group + group;
+    // 빠르기: 칸 폭을 약 12초에 지나간다 (TV 1030px이면 초당 약 86px)
+    belt.style.setProperty('--dur', Math.max(6, (one * k) / (W / 12)).toFixed(1) + 's');
+    void belt.offsetWidth; belt.classList.add('flow');
+  }
+  window.addEventListener('resize', function () { if (S.view === 'tv' && dayTopKey && $('sDayBelt').classList.contains('flow')) { dayTopKey = ''; if (lastBoard) try { renderDayTop(lastBoard, lastBoard.roster || [], lastBoard.per || {}, (lastBoard.settings || {}).trackM || 320); } catch (e) {} } });
+  window.nbDayTopTest = function (n, date) {   // 미리보기 시험: nbDayTopTest(12) → 12명 기록, nbDayTopTest(0) → 기다리는 문구, nbDayTopTest(8, '2026-11-23') → 월요일에
+    var roster = (lastBoard && lastBoard.roster) || [], m = {};
+    roster.slice(0, n).forEach(function (p, i) { m[p.id] = 320 * (9 - i % 6); });
+    dayTopKey = '';
+    renderDayTop({ dayTop: { date: n ? (date || todayStr()) : '', today: todayStr(), m: m } }, roster, {}, 320);
+  };
   /* ── 옆 칸: 학년별, 이번 주 친구 ── */
   function renderSide(roster, per, trackM) {
     var grades = {};
@@ -5617,10 +5656,11 @@ window.NBPix = (function () {
         var now = new Date(), td = dstr(now);
         var dow = (now.getDay() + 6) % 7;
         var ws = dstr(new Date(now.getTime() - dow * 86400000));
-        var per = {}, dates = {}, weekGym = 0;
+        var per = {}, dates = {}, weekGym = 0, dayM = {};
         log.forEach(function (r) {
           var s = per[r.id] || (per[r.id] = { m: 0, n: 0, weekM: 0, todayM: 0 });
           s.m += r.m; s.n++;
+          var dm = dayM[r.date] || (dayM[r.date] = {}); dm[r.id] = (dm[r.id] || 0) + r.m;
           if (r.date >= ws) s.weekM += r.m;
           if (r.date >= ws && r.gym) weekGym++;
           if (r.date === td) s.todayM += r.m;
@@ -5648,7 +5688,9 @@ window.NBPix = (function () {
           if (pick) faster.push(pick);
         });
         faster.sort(function (a, b) { return (b.last - b.now) - (a.last - a.now); });
-        return { url: '', roster: roster, route: route, settings: settings, per: per, faster: faster, weekGym: weekGym, praise: praise_(log, ws, td, settings.trackM), sessions: Object.keys(dates).length,
+        var topDate = Object.keys(dayM).filter(function (x) { return x <= td && Object.keys(dayM[x]).some(function (id) { return dayM[x][id] > 0; }); }).sort().pop() || '';
+        var dayTop = { date: topDate, today: td, m: topDate ? dayM[topDate] : {} };   // 서버 getBoard와 같은 계산
+        return { url: '', roster: roster, route: route, settings: settings, per: per, faster: faster, weekGym: weekGym, dayTop: dayTop, praise: praise_(log, ws, td, settings.trackM), sessions: Object.keys(dates).length,
           weekStart: ws, updated: (now.getMonth() + 1) + '월 ' + now.getDate() + '일 ' + ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2) };
       },
       getRoster: function () { return { url: '', roster: roster }; },
