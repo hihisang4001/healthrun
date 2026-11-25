@@ -3,7 +3,7 @@
  * 한 번 인터넷으로 열어 두면, 운동장처럼 와이파이가 없는 곳에서도 화면이 다시 열린다.
  * 체크 화면을 고쳐서 다시 올릴 때는 아래 VERSION 숫자를 지금보다 하나 올린다 (예: nb-v9 → nb-v10).
  */
-var VERSION = 'nb-v113';
+var VERSION = 'nb-v114';
 var PRECACHE = [
   './',
   './index.html',
@@ -54,7 +54,9 @@ self.addEventListener('fetch', function (event) {
     event.respondWith(new Promise(function (resolve) {
       var settled = false;
       var finish = function (res) { if (!settled && res) { settled = true; resolve(res); } };
-      var net = fetch(req).then(function (res) {
+      // 화면(페이지)은 브라우저 저장본(GitHub Pages는 10분)을 쓰지 말고 늘 서버에 바뀌었는지 물어본다
+      // → 깃허브에 올리면 다음에 열 때 바로 새 화면. 안 바뀌었으면 서버가 '그대로'(304)만 답해서 빠르다
+      var net = (isPage ? fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' }) : fetch(req)).then(function (res) {
         if (res && res.ok) {
           var copy = res.clone();
           caches.open(VERSION).then(function (c) { c.put(req, copy); });
