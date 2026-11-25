@@ -721,6 +721,11 @@ dialog.t-dlg::backdrop { background: rgba(20, 30, 25, .45); }
 .t-dlg header h2 { margin: 0 auto 0 0; font-size: 24px; font-weight: 900; display: flex; align-items: center; gap: 10px; }
 .t-dlg h3 { font-size: 15px; font-weight: 900; margin: 0 0 8px; }
 .t-dlg .notes { margin-top: 14px; font-size: 14px; color: var(--ink-soft); }
+/* 확인해 볼 강당 체크 (교사용) */
+.t-tbl .gchk { display: inline-block; margin-left: 4px; padding: 0 .45em; border-radius: 999px; background: #FFF1D6; color: #8A5A00; border: 1px solid #F0CF8A; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.t-dlg .gymchk { margin-top: 14px; padding: 10px 14px; border-radius: 12px; background: #FFF8E8; border: 1px solid #F0CF8A; font-size: 14px; }
+.t-dlg .gymchk small { display: block; color: var(--ink-soft); margin: 2px 0 4px; }
+.t-dlg .gymchk ul { margin: 4px 0 0; padding-left: 1.2em; }
 
 h2.sec { font-family: var(--display); font-weight: 400; font-size: 24px; margin: 30px 0 12px; }
 h2.sec small { font-family: var(--body); font-size: 14px; color: var(--ink-soft); font-weight: 500; margin-left: 8px; }
@@ -1097,6 +1102,8 @@ tr:last-child td { border-bottom: 0; }
         <button type="button" class="t-btn" id="dClose">닫기</button>
       </header>
       <div class="kpis" id="dKpis"></div>
+      <!-- 확인해 볼 강당 체크: 위쪽에 두어 열자마자 보이게 -->
+      <div id="dGymChk"></div>
       <div id="dCompare"></div>
       <div id="dGrowth"></div>
       <h3 id="dChartTitle">날짜별 바퀴</h3>
@@ -1909,7 +1916,7 @@ window.NBPix = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '117';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '118';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -5128,6 +5135,39 @@ window.NBPix = (function () {
     var tot = 0; all.forEach(function (s) { tot += s; });
     return { n: all.length, avg: all.length ? tot / all.length : null, best: best, bestDate: bestDate, perDay: perDay };
   }
+  /* 확인해 볼 강당 체크: 강당 다섯 바퀴를 다 돌지 않고 찍었을 수 있는 체크 (교사용에만, 학생 화면에는 없음).
+     그 학생의 평소 강당 체크 시간(전체 기간 중간값, 강당 체크 3번 이상일 때)의 65%보다 짧으면 표시 (대략 3바퀴 이하).
+     출발 바로 다음 체크는 뛰기 시작한 뒤에 출발을 찍은 경우가 많아 빼고, 평소 시간에도 넣지 않는다.
+     걷다 뛰다 하는 아이가 그날만 빨리 달렸을 수도 있어서, 판정이 아니라 '이야기 나눠 볼 거리'로만 쓴다 */
+  var GYM_SHORT = 0.65;
+  function gymMedian(id) {
+    var xs = [];
+    Object.keys(T.data.laps || {}).forEach(function (dt) {
+      ((T.data.laps[dt] || {})[id] || []).forEach(function (l) { if (l[1] && !l[2]) xs.push(l[0]); });
+    });
+    if (xs.length < 3) return null;
+    xs.sort(function (a, b) { return a - b; });
+    var m = xs.length >> 1;
+    return xs.length % 2 ? xs[m] : (xs[m - 1] + xs[m]) / 2;
+  }
+  function gymShort(id, dates) {
+    var med = gymMedian(id), out = [];
+    if (!med) return out;
+    dates.forEach(function (dt) {
+      ((T.data.laps[dt] || {})[id] || []).forEach(function (l) {
+        if (l[1] && !l[2] && l[0] < med * GYM_SHORT) out.push({ date: dt, sec: l[0], at: l[3] || '', med: med, nth: l[4] || 0 });
+      });
+    });
+    return out;
+  }
+  window.nbGymChkTest = function () {   // 미리보기 시험: 강당 체크가 3번 이상인 첫 학생에게 평소의 50%짜리 체크를 하나 넣고 다시 그림
+    var L = T.data.laps || {}, dts = Object.keys(L).sort();
+    for (var i = dts.length - 1; i >= 0; i--) for (var id in L[dts[i]]) {
+      var med = gymMedian(id); if (!med) continue;
+      L[dts[i]][id].push([Math.round(med / 2), 1, 0, '09:05', 3]); renderPeriod(); return id;
+    }
+    return '강당 체크 3번 넘는 학생 없음';
+  };
   function secTxt(s) {   // 108 → '1분 48초'
     if (s == null) return '-';
     s = Math.round(s); var mm = Math.floor(s / 60), ss = s % 60;
@@ -5419,7 +5459,7 @@ window.NBPix = (function () {
     var list = roster.map(function (p, i) {
       var s0 = per[p.id], day = s0.y ? lapsOf(s0.m) / s0.y : null, chg = null;
       if (ppDates && day != null) { var ps0 = sumStats(p.id, ppDates); if (ps0.y) chg = day - lapsOf(ps0.m) / ps0.y; }
-      return { p: p, i: i, s: s0, day: day, chg: chg, last: lastRun(p.id, all), lap: lapStats(p.id, dates), glap: lapStats(p.id, dates, true) };
+      return { p: p, i: i, s: s0, day: day, chg: chg, last: lastRun(p.id, all), lap: lapStats(p.id, dates), glap: lapStats(p.id, dates, true), gshort: gymShort(p.id, dates) };
     })
       .filter(function (r) { return T.grade === 'all' || r.p.grade === T.grade; });
 
@@ -5449,7 +5489,7 @@ window.NBPix = (function () {
         : '\'' + PERIOD_NAME[T.period] + '\'에서는 비교할 앞 기간이 없어요. 오늘·이번 주·지난주·이번 달을 고르면 바로 앞 기간과 하루 평균을 비교해요.',
       lap: '운동장 한 바퀴에 걸린 시간의 평균이에요.',
       best: '고른 기간에 운동장 한 바퀴를 가장 빨리 돈 시간이에요. 숫자에 마우스를 올리면 그 날짜가 보여요.',
-      glap: '강당 다섯 바퀴(체크 한 번)에 걸린 시간의 평균이에요.',
+      glap: '강당 다섯 바퀴(체크 한 번)에 걸린 시간의 평균이에요. 옆의 노란 \'확인 N\'은 평소 강당 시간의 65%보다 짧았던 체크 수예요(다섯 바퀴를 다 돌지 않았을 수 있어요).',
       gbest: '고른 기간에 강당 다섯 바퀴를 가장 빨리 돈 시간이에요. 숫자에 마우스를 올리면 그 날짜가 보여요.'
     };
     var cols = [['no', '번호'], ['name', '이름'], ['grade', '학년'], ['rate', '출석률'],
@@ -5480,7 +5520,7 @@ window.NBPix = (function () {
         '<td class="r num">' + (r.chg == null ? '<span style="color:var(--ink-soft)">-</span>' : (function (c) { var x = Math.round(c * 10) / 10; return x === 0 ? '<span style="color:var(--ink-soft)">같음</span>' : '<b style="color:' + (x > 0 ? '#1E6B3A' : '#B3261E') + '">' + (x > 0 ? '▲ ' : '▼ ') + f1(Math.abs(x)) + '</b>'; })(r.chg)) + '</td>' +
         '<td class="r num" title="' + (r.lap.n ? '운동장 바퀴 ' + r.lap.n + '개 평균' : '') + '">' + secTxt(r.lap.avg) + '</td>' +
         '<td class="r num" title="' + (r.lap.bestDate ? mdw(r.lap.bestDate) : '') + '">' + secTxt(r.lap.best) + '</td>' +
-        '<td class="r num gcol" title="' + (r.glap.n ? '강당 체크 ' + r.glap.n + '번 평균' : '') + '">' + secTxt(r.glap.avg) + '</td>' +
+        '<td class="r num gcol" title="' + (r.glap.n ? '강당 체크 ' + r.glap.n + '번 평균' : '') + '">' + secTxt(r.glap.avg) + (r.gshort.length ? ' <span class="gchk" title="평소 강당 시간의 65%보다 짧은 체크 ' + r.gshort.length + '번 (이름을 누르면 자세히)">확인 ' + r.gshort.length + '</span>' : '') + '</td>' +
         '<td class="r num" title="' + (r.glap.bestDate ? mdw(r.glap.bestDate) : '') + '">' + secTxt(r.glap.best) + '</td>' +
         '<td class="r num">' + (r.last ? mdw(r.last) : '-') + '</td></tr>';
     }).join('') + '</tbody>';
@@ -5585,6 +5625,11 @@ window.NBPix = (function () {
     });
     $('dPaceTitle').innerHTML = '페이스 변화 <small style="font-weight:500;color:var(--ink-soft)">운동장 랩타임 기준 · 날짜별 평균 랩타임 · 막대가 짧을수록 빨라요</small>';
     barChart($('dPace'), paceItems, maxS * 1.15, 170);
+    // 확인해 볼 강당 체크 (고른 기간)
+    var gs = gymShort(id, dates);
+    $('dGymChk').innerHTML = gs.length ? '<div class="gymchk"><b>확인해 볼 강당 체크 ' + gs.length + '번</b> <small>평소 강당 다섯 바퀴 ' + secTxt(gs[0].med) +
+      '의 65%보다 짧았어요. 다섯 바퀴를 다 돌았는지 이야기 나눠 보세요 (그날 빨리 달렸을 수도 있어요).</small><ul>' +
+      gs.map(function (g) { return '<li>' + mdw(g.date) + (g.at ? ' ' + esc(g.at) : '') + (g.nth ? ' · 그날 강당 ' + g.nth + '번째 체크(강당 ' + (g.nth * 5 - 4) + '~' + (g.nth * 5) + '바퀴째)' : '') + ' · ' + secTxt(g.sec) + ' (평소의 ' + Math.round(g.sec / g.med * 100) + '%)</li>'; }).join('') + '</ul></div>' : '';
     var ns = Object.keys(d.notes[id] || {}).sort().filter(function (dt) { return dt >= rg[0] && dt <= rg[1]; });
     $('dNotes').innerHTML = ns.length ? '<div class="notes"><b>출석부에 적은 말</b> · ' + ns.map(function (dt) { return mdw(dt) + ' ' + esc(d.notes[id][dt]); }).join(' · ') + '</div>' : '';
     if (!$('tDlg').open) $('tDlg').showModal();
@@ -5639,11 +5684,14 @@ window.NBPix = (function () {
       log.forEach(function (r) { if (r.t) (byKey[r.id + '|' + r.date] || (byKey[r.id + '|' + r.date] = [])).push(r); });
       Object.keys(byKey).forEach(function (k) {
         var rows = byKey[k].sort(function (a, b) { return a.t - b.t; });
+        var gymNo = 0;
         for (var i = 1; i < rows.length; i++) {
+          if (rows[i].gym) gymNo++;
           var sec = Math.round((rows[i].t - rows[i - 1].t) / 1000);
           if (sec < 30 || sec > 900) continue;
           var x = out[rows[i].date] || (out[rows[i].date] = {});
-          (x[rows[i].id] || (x[rows[i].id] = [])).push([sec, rows[i].gym ? 1 : 0]);
+          var tt = new Date(rows[i].t);
+          (x[rows[i].id] || (x[rows[i].id] = [])).push([sec, rows[i].gym ? 1 : 0, i === 1 ? 1 : 0, ('0' + tt.getHours()).slice(-2) + ':' + ('0' + tt.getMinutes()).slice(-2), rows[i].gym ? gymNo : i]);
         }
       });
       return out;
