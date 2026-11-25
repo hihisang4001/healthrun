@@ -958,7 +958,7 @@ tr:last-child td { border-bottom: 0; }
       </div>
 
       <div class="gb-box">
-        <div class="gb-head"><b>우리 학교 전국 일주</b><span id="gbUnit"></span><button type="button" class="map-zoom" id="mapZoom">🔍 지도 크게 보기</button></div>
+        <div class="gb-head"><b>초코의 전국 일주</b><span id="gbUnit"></span><button type="button" class="map-zoom" id="mapZoom">🔍 지도 크게 보기</button></div>
         <div class="trip" id="trip">
           <div class="trip-map"><canvas id="tripMap" aria-label="우리나라 지도 위를 달리는 강아지 초코"></canvas><div class="wx" id="wx" hidden></div></div>
           <div class="stages" id="stages"></div>
@@ -972,7 +972,7 @@ tr:last-child td { border-bottom: 0; }
           <div class="stat"><div class="lbl">지금까지</div><div class="val num" id="sTotal">0<small>바퀴</small></div></div>
         </div>
         <div class="kmcard">
-          <div class="q">우리 학교가 지금까지 달린 거리는?</div>
+          <div class="q">우리 내북초가 지금까지 달린 거리는?</div>
           <div class="a num" id="sKm">0<small>km</small></div>
         </div>
         <div class="side-card">
@@ -1909,7 +1909,7 @@ window.NBPix = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '116';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '117';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -2983,8 +2983,27 @@ window.NBPix = (function () {
     for (var i = 0; i < Math.max(off.length, zz.length); i++) { if (off[i]) out.push(off[i]); if (zz[i]) out.push(zz[i]); }
     return out;
   }
-  var lastRestKind = null;
-  setInterval(function () { if (restMode().kind !== lastRestKind) updateTalk(); }, 30000);   // 12시·2시가 되면 말을 바꾼다
+  /* 오늘 급식 한 줄 (낮 12시까지): 밥·국·찌개·김치·우유·음료를 빼고 앞에서 두 가지.
+     예: '오늘 점심은 갑오징어브로콜리초무침이랑 코다리강정! 힘내서 달리자!' (서버가 나이스 급식에서 받아 둔 것) */
+  var MEAL_SKIP = /(밥|죽|김치|깍두기|섞박지|석박지|겉절이|우유|요구르트|요거트|보리차|숭늉|생수|주스|쥬스|음료|국|탕|찌개)$/;
+  function mealOn() {
+    var m = lastBoard && lastBoard.meal;
+    return !!(m && m.date === todayStr() && m.dishes && m.dishes.length && nowDate().getHours() < 12);
+  }
+  function mealTalk(runDay) {
+    if (!mealOn()) return '';
+    var ds = lastBoard.meal.dishes, pick = ds.filter(function (d) { return !MEAL_SKIP.test(d); });
+    if (!pick.length) pick = ds.slice();
+    pick = pick.slice(0, 2);
+    var food = pick.length > 1 ? josa(pick[0], '이랑', '랑') + ' ' + pick[1] : pick[0];
+    return '오늘 점심은 ' + food + '! ' + (runDay ? '힘내서 달리자!' : '맛있게 먹자!');
+  }
+  window.nbMealTest = function (dishes) {   // 미리보기 시험: nbMealTest(['현미밥','순두부찌개','쇠고기메추리알조림','애호박전']) → 초코가 할 급식 말
+    if (dishes) { lastBoard.meal = { date: todayStr(), dishes: dishes }; updateTalk(); }
+    return [mealTalk(true), mealTalk(false)];
+  };
+  var lastRestKind = null, lastMealOn = null;
+  setInterval(function () { if (restMode().kind !== lastRestKind || mealOn() !== lastMealOn) updateTalk(); }, 30000);   // 12시·2시가 되면 말을 바꾼다
   window.nbRestTest = function (when) { clockTest = when || null; updateTalk(); return restMode(); };   // 예: nbRestTest('2026-11-23T13:00')
 
   function updateTalk() {
@@ -2992,9 +3011,9 @@ window.NBPix = (function () {
     var st = journey.stops, ni = journey.nextIdx, next = st[ni], prev = st[ni - 1];
     if (!next) return;
     var left = Math.max(1, Math.ceil(next.laps - journey.pos)), today = Math.round(journey.today || 0);
-    var rm = restMode();
-    lastRestKind = rm.kind;
-    if (rm.kind !== 'run') { trip.setTalk(restTalk(rm.kind, next, left, today)); return; }
+    var rm = restMode(), meal = mealTalk(rm.kind === 'run');
+    lastRestKind = rm.kind; lastMealOn = mealOn();
+    if (rm.kind !== 'run') { var rl = restTalk(rm.kind, next, left, today); if (meal) rl.splice(1, 0, meal); trip.setTalk(rl); return; }
     var list = [
       placeTalk(next.name),
       next.name + '까지 ' + lapsTxt(left) + '바퀴 남았어!',
@@ -3013,6 +3032,7 @@ window.NBPix = (function () {
       list.unshift(todayLook.talk);
       if (!todayLook.weather) list.splice(3, 0, todayLook.talk);
     }
+    if (meal) { list.splice(1, 0, meal); list.splice(5, 0, meal); }   // 급식은 두 번 나오게
     if (wxNow) {
       if (wxNow.kind === 'rain' || wxNow.kind === 'storm') list.push('비 오는 날은 강당에서 달리자!');
       else if (wxNow.kind === 'snow') list.push('눈 온다! 미끄러지지 않게 조심해!');
@@ -5697,7 +5717,7 @@ window.NBPix = (function () {
         faster.sort(function (a, b) { return (b.last - b.now) - (a.last - a.now); });
         var topDate = Object.keys(dayM).filter(function (x) { return x <= td && Object.keys(dayM[x]).some(function (id) { return dayM[x][id] > 0; }); }).sort().pop() || '';
         var dayTop = { date: topDate, today: td, m: topDate ? dayM[topDate] : {} };   // 서버 getBoard와 같은 계산
-        return { url: '', roster: roster, route: route, settings: settings, per: per, faster: faster, weekGym: weekGym, dayTop: dayTop, praise: praise_(log, ws, td, settings.trackM), sessions: Object.keys(dates).length,
+        return { url: '', roster: roster, route: route, settings: settings, per: per, faster: faster, weekGym: weekGym, dayTop: dayTop, meal: { date: td, dishes: ['녹색현미찹쌀밥', '쇠고기배춧국', '갑오징어브로콜리초무침', '코다리강정', '배추김치', '배', '우유', '보리차'] }, praise: praise_(log, ws, td, settings.trackM), sessions: Object.keys(dates).length,
           weekStart: ws, updated: (now.getMonth() + 1) + '월 ' + now.getDate() + '일 ' + ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2) };
       },
       getRoster: function () { return { url: '', roster: roster }; },
