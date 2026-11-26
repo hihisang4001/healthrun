@@ -1938,7 +1938,7 @@ window.NBPix = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '122';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '123';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -3505,6 +3505,29 @@ window.NBPix = (function () {
       paintGrid(g, 18 + X, -1 + Y, ['..kkkk..', '.kPpPPk.', 'kPPpPPqk', 'kPpPPpqk', 'kPPPpPqk', 'kPpPPqqk', '.kPqqqk.', '..kkkk..'], P);   // 털 귀마개
     }
   };
+  // 목에 건 메달 (많이 달린 친구 1~3번째 줄의 초코). 착장 없이 빨간 끈 + 금·은·동 메달. 강아지 칸 기준, 달리는 자세만
+  var MEDAL_COL = {
+    medal1: { M: '#F2C12E', m: '#FFE680', n: '#B8860B' },
+    medal2: { M: '#C9CED6', m: '#F4F6F8', n: '#8790A0' },
+    medal3: { M: '#CD7F32', m: '#E8A866', n: '#8B4F1D' }
+  };
+  function paintMedal(g, key) {
+    var c = MEDAL_COL[key], P = { k: '#1E1914', R: '#D2412E', r: '#9E2A20', M: c.M, m: c.m, n: c.n };
+    paintGrid(g, 25 + OUT_PAD.l, 10 + OUT_PAD.t, [
+      '.kk......kk.',
+      'kRRk....kRrk',
+      '.kRRkkkkRrk.',
+      '..kRRRRRrk..',
+      '...kkkkkk...',
+      '..kmmMMMnk..',
+      '.kmmMMMMMnk.',
+      '.kmMMMMMMnk.',
+      '.kMMMMMMnnk.',
+      '.kMMMMMnnnk.',
+      '..knnnnnnk..',
+      '...kkkkkk...'], P);
+  }
+  ['medal1', 'medal2', 'medal3'].forEach(function (k) { DETAIL[k] = function (g) { paintMedal(g, k); }; });
   // 새 칸에만 쓰는 몸 색 바꾸기 (새 칸 좌표, 2배 안 함)
   var RECOLOR2 = {
     raincoat: [[4, 32, 11, 21, { b: '#FFD23F', l: '#FFE77A', d: '#E0A800' }]]
@@ -4824,8 +4847,14 @@ window.NBPix = (function () {
   /* 등수 자리의 달리는 초코: 등수 숫자 대신 초코가 달리는 빠르기로 순서를 보여 준다 (경쟁심을 덜 부르게).
      위 줄일수록 빠르게, 맨 아래 줄도 분명히 달리는 모습 (그림 한 장 넘기는 간격 64·88·112·136·160ms). 그날 착장 그대로 */
   var RANK_MS = [64, 88, 112, 136, 160];   // 2026-11-26: 전체를 20% 빠르게
+  // 1~3번째 줄은 착장을 벗고 목에 금·은·동 메달을 건 초코 (그날 착장과 상관없이)
+  var MEDAL_URLS = ['medal1', 'medal2', 'medal3'].map(function (k) {
+    var a = []; for (var f = 0; f < DOG_FRAMES_N; f++) a.push(outfitCanvas(f, false, k, 'run').toDataURL()); return a;
+  });
+  function rankFrames(r) { return MEDAL_URLS[r] || dogURLs; }
   function rankDog(i) {
-    return '<span class="p"><img class="rdog" data-r="' + i + '" src="' + (dogURLs[i % dogURLs.length] || '') + '" alt="' + (i + 1) + '번째"></span>';
+    var fr = rankFrames(i), alt = i < 3 ? ['금', '은', '동'][i] + '메달 초코' : (i + 1) + '번째';
+    return '<span class="p"><img class="rdog" data-r="' + i + '" src="' + (fr[i % fr.length] || '') + '" alt="' + alt + '"></span>';
   }
   (function () {
     var t0 = performance.now();
@@ -4833,7 +4862,7 @@ window.NBPix = (function () {
       if (S.view !== 'tv' || document.hidden || !dogURLs.length) return;
       var now = performance.now() - t0;
       Array.prototype.forEach.call(document.querySelectorAll('.toplist img.rdog'), function (im) {
-        var r = Number(im.getAttribute('data-r')) || 0, f = (Math.floor(now / RANK_MS[r] ) + r) % dogURLs.length, u = dogURLs[f];
+        var r = Number(im.getAttribute('data-r')) || 0, fr = rankFrames(r), f = (Math.floor(now / RANK_MS[r]) + r) % fr.length, u = fr[f];
         if (im.getAttribute('src') !== u) im.setAttribute('src', u);
       });
     }, 16);   // 간격이 고르게 보이도록 자주 확인 (그림은 바뀔 때만 바꾼다)
