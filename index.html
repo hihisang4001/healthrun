@@ -320,6 +320,15 @@ img.stopimg { display: block; width: 100%; height: 100%; object-fit: cover; imag
   border: 3px solid #1E1914; border-top: 0; border-right: 0; }
 .goal-bar .gbub.r::after { left: -.45em; transform: rotate(45deg); }        /* 초코가 왼쪽에 있으면 꼬리도 왼쪽 */
 .goal-bar .gbub.l::after { right: -.45em; transform: rotate(-135deg); }
+/* 3D 초코: 화면 전체 위 투명 판(막대 초코 대신). 지도 크게 보기(90)·도착 축하(100) 아래 */
+#choco3d { position: fixed; top: 0; left: 0; z-index: 80; pointer-events: none; image-rendering: pixelated; display: none; }
+.c3bub { position: fixed; z-index: 81; pointer-events: none; background: #fff; color: #1E1914; font-weight: 900; font-size: 2.3vw;
+  line-height: 1.3; padding: .45em .8em; border-radius: .7em; border: .35vw solid #1E1914; box-shadow: 0 3px 0 rgba(0,0,0,.2);
+  word-break: keep-all; width: max-content; }
+.c3bub[hidden] { display: none; }
+.c3bub::after { content: ''; position: absolute; bottom: .5em; width: .7em; height: .7em; background: #fff; border: .35vw solid #1E1914; border-top: 0; border-right: 0; }
+.c3bub.r::after { left: -.45em; transform: rotate(45deg); }
+.c3bub.l::after { right: -.45em; transform: rotate(-135deg); }
 
 /* 전국 일주: 왼쪽 도트 지도 + 오른쪽 구간 게이지 (좁으면 위아래) */
 .trip { display: flex; gap: 16px; align-items: stretch; min-height: 0; }
@@ -586,7 +595,7 @@ body.tv .gb-head .map-zoom { font-size: clamp(14px, 1.9vmin, 30px); }
 @keyframes celOut { to { opacity: 0; } }
 #confetti { position: absolute; top: 0; left: 0; width: 100%; height: 100%; image-rendering: pixelated; }
 .cel-card {
-  position: relative; text-align: center; color: #1E1914; background: #FFF6D8;
+  position: relative; z-index: 1; text-align: center; color: #1E1914; background: #FFF6D8;
   width: min(86vw, 900px); padding: 3.2vmin 4vmin 4vmin;
   border: 1.2vmin solid #1E1914; box-shadow: 0 0 0 1.2vmin #FFC93C, 0 2vmin 0 1.2vmin #C4432B;
   animation: celPop .7s cubic-bezier(.2, 1.6, .4, 1) both;
@@ -1033,7 +1042,6 @@ tr:last-child td { border-bottom: 0; }
     <div class="cel-pic" id="celPic"></div>
     <div class="cel-name"><b id="celName"></b> 도착!</div>
     <div class="cel-msg" id="celMsg"></div>
-    <img class="cel-dog" id="celDog" alt="">
     <div class="cel-next" id="celNext"></div>
   </div>
 </div>
@@ -1938,7 +1946,7 @@ window.NBPix = (function () {
   var MODE = HAS_GAS ? 'gas' : (CFG ? 'api' : (IS_LOCAL ? 'demo' : 'setup'));
   if (!HAS_GAS && location.hash === '#setup') MODE = 'setup';
   var KEY = CFG ? CFG.key : '';
-  var APP_VER = '123';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
+  var APP_VER = '127';   // sw.js의 VERSION(nb-v43)과 같은 숫자로 맞춘다
   if (document.getElementById('verInfo')) document.getElementById('verInfo').textContent = '화면 ' + APP_VER;   // 공기계가 새 화면을 받았는지 확인용
   // 가까운 곳부터 출발하는 기본 코스 (누적 km, 어림값). 실제 코스는 구글 시트 [코스] 탭이 정한다.
   // 거점 사이 60~90km 안팎: 하루 20~30km씩 주 3회면 대략 일주일에 거점 하나. 제주는 배를 타고 간다
@@ -2854,9 +2862,10 @@ window.NBPix = (function () {
   }
 
   /* ── 거점 도착 축하 ──
-     도착한 날 학생용 현황판(TV)에서만: 처음 열 때, 새로 도착했을 때, 그리고 닫은 뒤에도 15분마다 다시 띄운다.
+     도착한 날 학생용 현황판(TV)에서만: 처음 열 때, 새로 도착했을 때, 그리고 닫은 뒤에도 30분마다 다시 띄운다.
+     3D 초코가 카드를 바닥 삼아 그 위를 시계 반대 방향으로 돌며 뛰논다(가끔 폴짝, 축하 말풍선).
      저절로 닫히지 않고, 화면을 눌러야 닫힌다. 다음 날 아침 새로 고칠 때 도착 기록이 없으면 저절로 내려간다. */
-  var CEL_EVERY_MS = 15 * 60 * 1000;
+  var CEL_EVERY_MS = 30 * 60 * 1000;
   var celState = { key: '', last: 0 }, celRaf = null;
   function maybeCelebrate(name, nextName, left) {
     if (S.view !== 'tv') return;
@@ -2873,12 +2882,9 @@ window.NBPix = (function () {
     $('celMsg').textContent = '오늘 우리 학교와 초코가 다 함께 달려서 ' + name + '에 도착했어요!';
     $('celNext').textContent = nextName ? '다음 목표: ' + nextName + '까지 ' + lapsTxt(left) + '바퀴' : '';
     $('celNext').hidden = !nextName;
-    // 강아지도 같이 뛴다
-    var urls = dogURLs.slice(), f = 0;   // 오늘 착장 그대로
-    $('celDog').src = urls[0];
     box.classList.remove('out');
     box.hidden = false;
-    startConfetti(function () { f = (f + 1) % urls.length; $('celDog').src = urls[f]; });
+    startConfetti(function () {});   // 초코는 3D 판(choco3d)이 카드 둘레에 그린다
   }
   function endCelebrate() {
     var box = $('celebrate');
@@ -3697,16 +3703,20 @@ window.NBPix = (function () {
   /* ── 지금 입고 있는 착장 그림 (지도·목표 막대·축하 화면이 같이 쓴다) ── */
   var DOG_FRAMES_N = 4, POSE_FRAMES = { run: 4, sit: 2, lie: 2 };
   // poseSprites[자세][0 오른쪽 / 1 왼쪽][장], dogURLs는 달리는 그림 (축하 화면이 쓴다)
-  var dogOutfit = null, poseSprites = {}, poseURLs = {}, dogURLs = [];
+  // 착장은 '많이 달린 친구' 4·5번째 줄(rankOutfitURLs)에만 입힌다. poseSprites·dogURLs는 늘 맨몸
+  var dogOutfit = null, poseSprites = {}, poseURLs = {}, dogURLs = [], rankOutfitURLs = [];
   function setDogOutfit(key) {
     key = key || '';
     if (key === dogOutfit) return;
     dogOutfit = key;
+    rankOutfitURLs = [];
+    for (var rf = 0; rf < DOG_FRAMES_N; rf++) rankOutfitURLs.push(outfitCanvas(rf, false, key, 'run').toDataURL());
+    if (poseURLs.run) return;   // 맨몸 그림은 한 번만 만든다
     Object.keys(POSE_FRAMES).forEach(function (p) {
       poseSprites[p] = [[], []]; poseURLs[p] = [];
       for (var f = 0; f < POSE_FRAMES[p]; f++) {
-        poseSprites[p][0].push(outfitCanvas(f, false, key, p));
-        poseSprites[p][1].push(outfitCanvas(f, true, key, p));
+        poseSprites[p][0].push(outfitCanvas(f, false, '', p));
+        poseSprites[p][1].push(outfitCanvas(f, true, '', p));
         poseURLs[p].push(poseSprites[p][0][f].toDataURL());
       }
     });
@@ -3740,6 +3750,7 @@ window.NBPix = (function () {
   /* 막대 위 초코 옆에 말풍선: 초코 왼쪽·오른쪽 중 넓은 쪽, 높이는 초코 머리쯤. 말은 지도 말풍선과 같은 것을 같은 때에 바꾼다 */
   function placeGoalBubble() {
     var bub = $('gBub'), dog = $('gDog'); if (!bub || !dog) return;
+    if (c3Roaming()) { bub.hidden = true; return; }   // 3D 초코가 뛰어다니는 동안은 따라다니는 말풍선(.c3bub)이 대신
     var text = trip.talkNow && trip.talkNow();
     if (!text || !dog.offsetWidth) { bub.hidden = true; return; }
     if (bub.textContent !== text) bub.textContent = text;
@@ -3759,6 +3770,290 @@ window.NBPix = (function () {
     bub.style.bottom = (br.bottom - headY - bub.offsetHeight * .35) + 'px';
   }
   window.addEventListener('resize', function () { if (S.view === 'tv') placeGoalBubble(); });
+
+  /* ── 3D 초코 (스프라이트 스태킹): 다음 목표 막대의 초코를 대신한다 ──
+     몸통·머리·귀·다리를 입체 덩어리로 정해 높이별 단면(최대 24층)을 만들고, 1점씩 올려 쌓아 돌린다(세로 0.82배로 비스듬히).
+     맨몸(착장 없음). 막대 위 2D 초코(gDog)는 자리·말풍선 기준으로만 남기고 보이지 않게 한다.
+     달리는 시간(restMode run)에는 막대 제자리에서 오른쪽을 보고 달리다가 3분쯤마다 15~20초 현황판 전체를 뛰어다니고 돌아온다.
+     쉬는 시간에는 막대에서 3D로 앉거나 엎드려 존다. 말풍선은 뛰어다니는 동안 머리 위를 따라다닌다.
+     시험: nbRoamTest() 지금 뛰어나가기, nbRestTest('2026-11-23T13:00') 쉬는 자세 */
+  var C3 = { k: '#1E1914', h: '#C98A52', l: '#B0703F', b: '#8A5230', s: '#6E3F22', d: '#5A3119', D: '#43230F', w: '#FFFFFF', e: '#111111', n: '#2B1A10', p: '#E8607A', r: '#D9776A' };
+  var C3N = 34, C3H = 24, C3TILT = 0.82, C3ANG = 32;
+  var C3SIZE = 0.85;   // 2D 초코 대비 3D 초코 크기 (현황판 막대·지도 공통)
+  var C3PARTY = ['야호! ○○ 도착이다!', '다 같이 달려서 왔어! 고마워!', '기분 최고! 꼬리가 저절로 흔들려!'];   // 도착 축하 말풍선 (3초마다)
+  var C3REST_AI = 6;   // 앉기·엎드리기는 보는 사람 쪽(오른쪽 앞, 비스듬한 정면)을 본다
+  var C3Z = ['####', '..#.', '.#..', '####'];
+  function c3ev(x, y, z, cx, cy, cz, rx, ry, rz) { var a = (x - cx) / rx, b = (y - cy) / ry, c = (z - cz) / rz; return a * a + b * b + c * c; }
+  function c3ell(x, y, z, cx, cy, cz, rx, ry, rz) { return c3ev(x, y, z, cx, cy, cz, rx, ry, rz) <= 1; }
+  // 머리(눈·코·혀·볼·귀·주둥이 포함). 코·혀·볼은 앞뒤 2칸 두께라 정면에서 세로로 눌려도 사라지지 않는다
+  function c3head(x, y, z, hx, hz, o) {
+    var ay = Math.abs(y), ey = o.earY || 5;
+    if (x >= hx + 3.6 && x <= hx + 5.6 && Math.abs(ay - 2) <= 0.5) {
+      if (o.closed) { if (z === hz + 1) return 'e'; }
+      else if (z >= hz + 1 && z <= hz + 2) return (z === hz + 2 && ay < 2 && x < hx + 4.6) ? 'w' : 'e';
+    }
+    if (x >= hx + 6.2 && x <= hx + 7.6 && ay <= 1.1 && z >= hz - 1 && z <= hz) return 'n';
+    if (o.tongue && x >= hx + 4.8 && x <= hx + 6.6 && ay <= 0.8 && z >= hz - 4 && z <= hz - 3) return 'p';
+    if (z === hz - 1 && Math.abs(ay - 3.3) <= 0.6 && x >= hx + 2.8 && x <= hx + 4.6) return 'r';
+    if (c3ell(x, ay, z, hx + 0.4, ey, hz - 1.4, 2.4, 1.4, 4.3)) return ay > ey + 0.4 ? 'D' : 'd';
+    if (c3ell(x, y, z, hx + 5.2, 0, hz - 1.6, 2.4, 2.5, 1.9)) return 'l';
+    if (c3ell(x, y, z, hx, 0, hz, 5.2, 5, 4.8)) return z >= hz - 2 ? 'b' : 's';
+    return null;
+  }
+  function c3tail(x, y, z, pts) {   // 꼬리: 점 11개를 이은 굵은 줄, 끝은 밝게
+    for (var i = 0; i < pts.length; i++) {
+      var q = pts[i], dx = x - q[0], dy = y - q[1], dz = z - q[2];
+      if (dx * dx + dy * dy + dz * dz <= 1.7) return i > pts.length * 0.7 ? 'h' : 'b';
+    }
+    return null;
+  }
+  function c3line(fn) { var a = []; for (var i = 0; i <= 10; i++) a.push(fn(i / 10)); return a; }
+  var C3POSE = {
+    run: { n: 4, top: 18, at: function (x, y, z, f) {
+      var bob = [1, 0, 1, 0][f], sw = [2, 0, -2, 0][f], wag = [1, 0, -1, 0][f], hz = 13 + bob;
+      var c = c3head(x, y, z, 6, hz, { tongue: true }); if (c) return c;
+      if (c3ell(x, y, z, -1.5, 0, 7.5 + bob, 6.5, 4.8, 4.3)) return z >= 6 + bob ? 'b' : 's';
+      c = c3tail(x, y, z, c3line(function (t) { return [-7.5 - 2.5 * Math.sin(t * 1.6), wag * 1.5 * t, 9 + bob + 5 * t]; })); if (c) return c;
+      if (z <= 4 + bob) {
+        var legs = [[3.5, -2.8, 1], [3.5, 2.8, -1], [-5, -2.8, -1], [-5, 2.8, 1]];
+        for (var i = 0; i < 4; i++) {
+          var L = legs[i], off = (f % 2 === 0 ? sw * L[2] : 0) * (4 + bob - z) / 4;
+          if (Math.abs(x - (L[0] + off)) <= 1.4 && Math.abs(y - L[1]) <= 1.3) return z <= 0 ? 'D' : (z <= 1 ? 's' : 'b');
+        }
+      }
+      return null;
+    } },
+    // 앉기: 엉덩이를 바닥에, 앞다리는 곧게, 가슴은 숨 쉬듯 부풀고, 꼬리는 바닥↔위
+    sit: { n: 2, top: 20, at: function (x, y, z, f) {
+      var br = f ? 0.35 : 0;
+      var c = c3head(x, y, z, 3.2, 15, { tongue: true }); if (c) return c;
+      if (Math.abs(x - 2.6) <= 1.2 && Math.abs(Math.abs(y) - 2.2) <= 1.1 && z <= 6) return z <= 0 ? 'D' : (z <= 1 ? 's' : 'b');
+      if (c3ell(x, y, z, 1, 0, 9, 3.6 + br, 4.3 + br, 4.8)) return z >= 7 ? 'b' : 's';
+      if (c3ell(x, y, z, -2.5, 0, 4.2, 4.2, 4.9, 4.2)) return z >= 3 ? 'b' : 's';
+      if (Math.abs(x - 0.5) <= 2 && Math.abs(Math.abs(y) - 3.8) <= 1 && z <= 1) return z <= 0 ? 'D' : 'b';
+      return c3tail(x, y, z, c3line(function (t) { return f ? [-6.2 - 2 * t, 0, 2 + 5 * t] : [-6.2 - 2 * t, 3 * t, 1]; }));
+    } },
+    // 엎드리기: 배를 바닥에, 머리는 앞발 위, 눈 감고 배가 오르내린다
+    lie: { n: 2, top: 11, at: function (x, y, z, f) {
+      var c = c3head(x, y, z, 6.5, 6, { closed: true, earY: 5.4 }); if (c) return c;
+      if (Math.abs(Math.abs(y) - 2.6) <= 1.1 && x >= 4 && x <= 11.5 && z <= 1) return z <= 0 ? 's' : 'b';
+      if (c3ell(x, y, z, -1.5, 0, 3.6, 6.8, 5, 3.4 + (f ? 0.4 : 0))) return z >= 2 ? 'b' : 's';
+      if (c3ell(x, Math.abs(y), z, -4.5, 4.9, 1.5, 2.6, 1.2, 1.6)) return 'b';
+      return c3tail(x, y, z, c3line(function (t) { return [-8 - 1.5 * t, 3 * t * t, 1]; }));
+    } }
+  };
+  function c3mix(a, b, t) {
+    var A = parseInt(a.slice(1), 16), B = parseInt(b.slice(1), 16), o = [];
+    for (var s = 16; s >= 0; s -= 8) o.push(Math.round(((A >> s) & 255) * (1 - t) + ((B >> s) & 255) * t));
+    return 'rgb(' + o.join(',') + ')';
+  }
+  function c3shade(hex, k) {
+    var n = parseInt(hex.slice(1), 16), m = function (v) { return Math.max(0, Math.min(255, Math.round(v * k))); };
+    return 'rgb(' + m(n >> 16) + ',' + m((n >> 8) & 255) + ',' + m(n & 255) + ')';
+  }
+  var c3slices = {};
+  function c3getSlices(pose, f) {
+    var key = pose + f; if (c3slices[key]) return c3slices[key];
+    var P = C3POSE[pose], list = [];
+    for (var z = 0; z < C3H; z++) {
+      var cv = document.createElement('canvas'); cv.width = cv.height = C3N;
+      var g = cv.getContext('2d'), any = false;
+      for (var j = 0; j < C3N; j++) for (var i = 0; i < C3N; i++) {
+        var k = P.at(i - C3N / 2 + 0.5, j - C3N / 2 + 0.5, z, f); if (!k) continue;
+        any = true;
+        if (k === 'b' || k === 's') {   // 털: 아래 진한 갈색 → 위 밝은 갈색 (층마다 줄무늬가 생기지 않게 높이로만)
+          var t = Math.max(0, Math.min(1, (z - 1) / (P.top - 3)));
+          g.fillStyle = t < 0.5 ? c3mix(C3.s, C3.b, t * 2) : c3mix(C3.b, C3.h, (t - 0.5) * 2);
+        } else g.fillStyle = 'weprn'.indexOf(k) >= 0 ? C3[k] : c3shade(C3[k], 0.85 + 0.2 * Math.min(1, z / P.top));
+        g.fillRect(i, j, 1, 1);
+      }
+      list.push(any ? cv : null);
+    }
+    return (c3slices[key] = list);
+  }
+  // 쌓은 그림 + 검은 테두리. 땅에 닿는 점은 (33, 47)
+  var c3sprites = {};
+  function c3sprite(pose, f, ai) {
+    var key = pose + f + '|' + ai; if (c3sprites[key]) return c3sprites[key];
+    var sl = c3getSlices(pose, f), a = ai * Math.PI * 2 / C3ANG;
+    var spr = document.createElement('canvas'), out = document.createElement('canvas'), sil = document.createElement('canvas');
+    spr.width = spr.height = out.width = out.height = sil.width = sil.height = 66;
+    var g = spr.getContext('2d'); g.imageSmoothingEnabled = false;
+    for (var z = 0; z < C3H; z++) {
+      if (!sl[z]) continue;
+      g.save(); g.translate(33, 47 - z); g.scale(1, C3TILT); g.rotate(a); g.drawImage(sl[z], -C3N / 2, -C3N / 2); g.restore();
+    }
+    var sx = sil.getContext('2d'); sx.drawImage(spr, 0, 0); sx.globalCompositeOperation = 'source-in'; sx.fillStyle = C3.k; sx.fillRect(0, 0, 66, 66);
+    var o = out.getContext('2d');
+    o.drawImage(sil, -1, 0); o.drawImage(sil, 1, 0); o.drawImage(sil, 0, -1); o.drawImage(sil, 0, 1); o.drawImage(spr, 0, 0);
+    return (c3sprites[key] = out);
+  }
+
+  /* 미리보기 시험: 콘솔에서 nbC3Gallery() → 3D 초코 자세 모아 보기(뛰기 4장·4방향, 앉기 2장, 엎드리기 2장). 누르면 닫힘 */
+  window.nbC3Gallery = function () {
+    var box = document.createElement('div');
+    box.style.cssText = 'position:fixed;inset:0;z-index:999;background:#2E6B46;color:#fff;overflow:auto;padding:18px;font:900 22px/1.3 sans-serif';
+    function cell(pose, f, ai, label) {
+      var c = document.createElement('canvas'); c.width = 66; c.height = 60;
+      var g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+      g.save(); g.translate(33, 48); g.scale(1, C3TILT); g.rotate(ai * Math.PI * 2 / C3ANG);
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.beginPath(); g.ellipse(0, 0, pose === 'lie' ? 12 : 10, 7, 0, 0, Math.PI * 2); g.fill(); g.restore();
+      g.drawImage(c3sprite(pose, f, ai), 0, 0);
+      if (pose === 'lie') [[40, 30 - f], f ? [45, 23] : null].forEach(function (q) {
+        if (!q) return;
+        for (var pass = 0; pass < 2; pass++) C3Z.forEach(function (row, yy) {
+          for (var xx = 0; xx < 4; xx++) if (row.charAt(xx) === '#') { g.fillStyle = pass ? '#fff' : C3.k; g.fillRect(q[0] + xx - (pass ? 0 : 1), q[1] + yy - (pass ? 0 : 1), pass ? 1 : 3, pass ? 1 : 3); }
+        });
+      });
+      c.style.cssText = 'width:264px;height:240px;image-rendering:pixelated;background:rgba(255,255,255,.08);border-radius:10px';
+      var w = document.createElement('figure'); w.style.cssText = 'margin:0;text-align:center;font-size:16px;font-weight:700';
+      w.appendChild(c); var t = document.createElement('figcaption'); t.textContent = label; w.appendChild(t);
+      return w;
+    }
+    [['뛰는 모습 (4장)', [['run', 0, 0, '1'], ['run', 1, 0, '2'], ['run', 2, 0, '3'], ['run', 3, 0, '4']]],
+     ['뛰는 모습 (방향)', [['run', 0, 4, '오른쪽 아래'], ['run', 0, 8, '정면'], ['run', 0, 16, '왼쪽'], ['run', 0, 24, '뒷모습']]],
+     ['앉은 모습 (2장: 꼬리 내림·듦, 숨쉬기)', [['sit', 0, C3REST_AI, '1'], ['sit', 1, C3REST_AI, '2']]],
+     ['엎드린 모습 (2장: 졸며 숨쉬기)', [['lie', 0, C3REST_AI, '1'], ['lie', 1, C3REST_AI, '2']]]].forEach(function (sec) {
+      var h = document.createElement('div'); h.textContent = sec[0]; h.style.margin = '6px 0 8px';
+      var row = document.createElement('div'); row.style.cssText = 'display:flex;flex-wrap:wrap;gap:12px;margin-bottom:14px';
+      sec[1].forEach(function (a) { row.appendChild(cell(a[0], a[1], a[2], a[3])); });
+      box.appendChild(h); box.appendChild(row);
+    });
+    box.addEventListener('click', function () { box.remove(); });
+    document.body.appendChild(box);
+    return box;
+  };
+
+  function c3drawZ(g, x, y, s) {
+    for (var pass = 0; pass < 2; pass++) C3Z.forEach(function (row, yy) {
+      for (var xx = 0; xx < 4; xx++) if (row.charAt(xx) === '#') {
+        if (pass === 0) { g.fillStyle = C3.k; g.fillRect(x + (xx - 1) * s, y + (yy - 1) * s, 3 * s, 3 * s); }
+        else { g.fillStyle = '#FFFFFF'; g.fillRect(x + xx * s, y + yy * s, s, s); }
+      }
+    });
+  }
+  // 지도 위 3D 초코: 땅에 닿는 점(gx, gy)에 점 크기 s로. ai는 32방향 번호
+  function c3drawOn(g, gx, gy, s, pose, f, ai, shadow) {
+    var sm = g.imageSmoothingEnabled; g.imageSmoothingEnabled = false;
+    if (shadow) {
+      g.save(); g.translate(gx, gy + s); g.scale(1, C3TILT); g.rotate(ai * Math.PI * 2 / C3ANG);
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.beginPath(); g.ellipse(0, 0, (pose === 'lie' ? 12 : 10) * s, 7 * s, 0, 0, Math.PI * 2); g.fill(); g.restore();
+    }
+    g.drawImage(c3sprite(pose, f, ai), Math.round(gx - 33 * s), Math.round(gy - 47 * s), 66 * s, 66 * s);
+    if (pose === 'lie') { c3drawZ(g, Math.round(gx + 7 * s), Math.round(gy - (17 + f) * s), s); if (f) c3drawZ(g, Math.round(gx + 12 * s), Math.round(gy - 24 * s), s); }
+    g.imageSmoothingEnabled = sm;
+  }
+  function c3angleIndex(dx, dy) {   // 화면에서 가는 방향(dx, dy) → 32방향 번호
+    var a = Math.atan2(dy / C3TILT, dx);
+    return ((Math.round(a / (Math.PI * 2 / C3ANG)) % C3ANG) + C3ANG) % C3ANG;
+  }
+  var c3 = null;
+  function c3Roaming() { return !!(c3 && c3.state !== 'home'); }
+  (function () {
+    var cv = document.createElement('canvas'); cv.id = 'choco3d'; cv.setAttribute('aria-hidden', 'true');
+    var bub = document.createElement('div'); bub.className = 'c3bub'; bub.hidden = true;
+    document.body.appendChild(cv); document.body.appendChild(bub);
+    var ctx = cv.getContext('2d');
+    var calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var ROAM_EVERY = 180000;
+    c3 = { state: 'home', x: 0, y: 0, a: 0, wp: null, until: 0, next: performance.now() + 40000 + Math.random() * 30000, P: 0, last: 0 };
+    function anchor() {   // 막대 위 2D 초코의 발 가운데 (화면 px)
+      var dog = $('gDog'); if (!dog || !dog.offsetWidth) return null;
+      var r = dog.getBoundingClientRect(), u = r.width / (DOG_W + OUT_PAD.l + OUT_PAD.r);
+      return { x: r.left + (OUT_PAD.l + DOG_W / 2) * u, y: r.top + (OUT_PAD.t + DOG_H) * u, u: u };
+    }
+    function pickWaypoint(W, H) { var m = 24; return { x: m + Math.random() * (W - 2 * m), y: m + 20 + Math.random() * (H - 2 * m - 20) }; }
+    function turnToward(target, maxStep) {
+      var d = target - c3.a; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
+      c3.a += Math.max(-maxStep, Math.min(maxStep, d)); return Math.abs(d);
+    }
+    function hideAll() { cv.style.display = 'none'; bub.hidden = true; var d = $('gDog'); if (d) d.style.visibility = ''; }
+    function startRoam(now) { c3.state = 'roam'; c3.until = now + 15000 + Math.random() * 5000; c3.wp = null; }
+    window.nbRoamTest = function () { if (c3.state === 'home') startRoam(performance.now()); return c3.state; };
+    function drawZ(x, y) { c3drawZ(ctx, x, y, 1); }
+    function frame(now) {
+      requestAnimationFrame(frame);
+      var dt = Math.min(0.05, (now - (c3.last || now)) / 1000); c3.last = now;
+      if (S.view !== 'tv' || document.hidden) { hideAll(); return; }
+      var an = anchor(); if (!an) { hideAll(); return; }
+      $('gDog').style.visibility = 'hidden';
+      // 점 크기: 3D 초코 몸 길이(약 24점)가 2D 초코(40점)보다 살짝 작게(0.85배)
+      var P = Math.max(2, Math.round(an.u * 40 / 24 * C3SIZE));
+      var W = Math.ceil(innerWidth / P), H = Math.ceil(innerHeight / P);
+      if (cv.width !== W || cv.height !== H || c3.P !== P) {
+        if (c3.P && c3.P !== P) { c3.x = c3.x * c3.P / P; c3.y = c3.y * c3.P / P; }
+        cv.width = W; cv.height = H; cv.style.width = W * P + 'px'; cv.style.height = H * P + 'px'; c3.P = P;
+      }
+      cv.style.display = 'block';
+      var hx = an.x / P, hy = an.y / P, restPose = dogPose(), celeb = !$('celebrate').hidden;
+      // 도착 축하: 판과 말풍선을 축하 화면 안으로 옮겨, 카드를 바닥 삼아 그 위(카드 가장자리 안쪽 타원)를 돈다. 늘 카드 앞(z 2)
+      var celBox = $('celebrate'), party = celeb && !celBox.classList.contains('out'), hop = 0, front = true;
+      var host = party ? celBox : document.body;
+      if (cv.parentNode !== host) { host.appendChild(cv); host.appendChild(bub); }
+      if (!party) { cv.style.zIndex = ''; bub.style.zIndex = ''; if (c3.state === 'party') c3.state = 'back'; }
+      if (party) {
+        if (c3.state !== 'party') { c3.state = 'party'; c3.joined = false; c3.hop0 = 0; c3.nextHop = now + 1500 + Math.random() * 2000; }
+        var cr = celBox.querySelector('.cel-card').getBoundingClientRect();
+        var ccx = (cr.left + cr.width / 2) / P, ccy = (cr.top + cr.height / 2) / P;
+        var erx = Math.max(10, cr.width / 2 / P - 16), ery = Math.max(10, cr.height / 2 / P - 12);   // 카드 안쪽
+        if (calm) { c3.x = ccx; c3.y = ccy + ery; c3.a = Math.PI / 2; }   // 움직임 줄이기: 카드 아래쪽에서 정면 제자리 달리기
+        else if (!c3.joined) {   // 지금 자리에서 가장 가까운 둘레 점으로 달려간다
+          c3.pt = Math.atan2((c3.y - ccy) / ery, (c3.x - ccx) / erx);
+          var jx = ccx + erx * Math.cos(c3.pt) - c3.x, jy = ccy + ery * Math.sin(c3.pt) - c3.y, jd = Math.hypot(jx, jy), js = W * 0.3 * dt;
+          if (jd <= Math.max(1, js)) c3.joined = true;
+          else { turnToward(Math.atan2(jy / C3TILT, jx), dt * 6); c3.x += jx / jd * js; c3.y += jy / jd * js; }
+        } else {   // 시계 반대 방향(화면에서 각도가 줄어드는 쪽)으로 한 바퀴 7초
+          c3.pt -= dt * Math.PI * 2 / 7;
+          var nx = ccx + erx * Math.cos(c3.pt), ny = ccy + ery * Math.sin(c3.pt), vx = nx - c3.x, vy = ny - c3.y;
+          c3.x = nx; c3.y = ny;
+          if (vx || vy) c3.a = Math.atan2(vy / C3TILT, vx);
+        }
+        front = true;
+        cv.style.zIndex = front ? 2 : 0; bub.style.zIndex = 3;
+        if (!calm && now > c3.nextHop) { c3.hop0 = now; c3.nextHop = now + 4000 + Math.random() * 2000; }
+        if (now - c3.hop0 < 520) hop = Math.round(Math.sin((now - c3.hop0) / 520 * Math.PI) * 9);   // 폴짝 (그림자는 바닥에)
+      } else if (c3.state === 'home') {
+        c3.x = hx; c3.y = hy; turnToward(0, dt * 5);
+        if (!calm && restPose === 'run' && !trip.running() && !celeb && now > c3.next) startRoam(now);
+      } else {
+        var goHome = c3.state === 'back' || now > c3.until || restPose !== 'run' || celeb;   // 축하가 닫히면 게이지로 달려 돌아간다
+        if (goHome) c3.state = 'back';
+        var tgt = goHome ? { x: hx, y: hy } : (c3.wp || (c3.wp = pickWaypoint(W, H)));
+        var dx = tgt.x - c3.x, dy = tgt.y - c3.y, dist = Math.hypot(dx, dy), sp = W * 0.24 * dt;
+        if (dist <= Math.max(1, sp)) {
+          c3.x = tgt.x; c3.y = tgt.y;
+          if (goHome) { c3.state = 'home'; c3.next = now + ROAM_EVERY + (Math.random() - 0.5) * 40000; }
+          else c3.wp = null;
+        } else {
+          var off = turnToward(Math.atan2(dy / C3TILT, dx), dt * 4.5), go = off > 1.6 ? 0.35 : 1;   // 크게 돌 때는 천천히
+          c3.x += Math.cos(c3.a) * sp * go; c3.y += Math.sin(c3.a) * C3TILT * sp * go;
+        }
+      }
+      var pose = c3.state === 'home' ? (trip.running() ? 'run' : restPose) : 'run';
+      var f = pose === 'run' ? Math.floor(now / 110) % 4 : Math.floor(now / 660) % 2;
+      var ai = pose === 'run' ? ((Math.round(c3.a / (Math.PI * 2 / C3ANG)) % C3ANG) + C3ANG) % C3ANG : C3REST_AI;
+      ctx.clearRect(0, 0, W, H); ctx.imageSmoothingEnabled = false;
+      var px = Math.round(c3.x), py = Math.round(c3.y);
+      ctx.save(); ctx.translate(px, py + 1); ctx.scale(1, C3TILT); ctx.rotate(ai * Math.PI * 2 / C3ANG);
+      ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(0, 0, pose === 'lie' ? 12 : 10, 7, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      ctx.drawImage(c3sprite(pose, f, ai), px - 33, py - 47 - hop);
+      if (pose === 'lie') { drawZ(px + 7, py - 17 - f); if (f) drawZ(px + 12, py - 24); }   // 조는 Z (정면 머리 오른쪽 위)
+      // 뛰어다닐 때 말풍선은 머리 위를 따라다닌다 (막대 말풍선은 숨김)
+      var text = party ? (front ? C3PARTY[Math.floor(now / 3000) % C3PARTY.length].replace('○○', $('celName').textContent || '') : '')
+        : (c3.state !== 'home' && trip.talkNow && trip.talkNow());
+      if (text) {
+        if (bub.textContent !== text) bub.textContent = text;
+        bub.hidden = false;
+        var sx = px * P, sy = (py - 20 - hop) * P, right = sx < innerWidth / 2;
+        bub.className = 'c3bub ' + (right ? 'r' : 'l');
+        bub.style.maxWidth = Math.max(120, (right ? innerWidth - sx : sx) - 12 * P - 16) + 'px';
+        bub.style.top = Math.max(4, sy - bub.offsetHeight * 0.65) + 'px';
+        if (right) { bub.style.left = (sx + 10 * P) + 'px'; bub.style.right = 'auto'; }
+        else { bub.style.right = (innerWidth - sx + 10 * P) + 'px'; bub.style.left = 'auto'; }
+      } else bub.hidden = true;
+    }
+    requestAnimationFrame(frame);
+  })();
 
   /* ── 오늘 입을 착장 고르기 ──
      순서: 추모일(태극기) > 기념일 > 날씨 > 계절 기본. 기념일은 '그 주 등교일(월~금)'에 입는다.
@@ -4054,10 +4349,10 @@ window.NBPix = (function () {
         var a = pts[i], b = pts[i + 1];
         if (laps <= b.laps || i === pts.length - 2) {
           var f = Math.max(0, Math.min(1, (laps - a.laps) / Math.max(1e-9, b.laps - a.laps)));
-          return { x: a.xy[0] + (b.xy[0] - a.xy[0]) * f, y: a.xy[1] + (b.xy[1] - a.xy[1]) * f, dx: b.xy[0] - a.xy[0], i: i };
+          return { x: a.xy[0] + (b.xy[0] - a.xy[0]) * f, y: a.xy[1] + (b.xy[1] - a.xy[1]) * f, dx: b.xy[0] - a.xy[0], dy: b.xy[1] - a.xy[1], i: i };
         }
       }
-      return { x: pts[0].xy[0], y: pts[0].xy[1], dx: 1, i: 0 };
+      return { x: pts[0].xy[0], y: pts[0].xy[1], dx: 1, dy: 0, i: 0 };
     }
     // 길을 도트로 긋기 (from~to 바퀴 구간)
     function strokePath(x, from, to, w, color, dash, sc) {
@@ -4374,21 +4669,22 @@ window.NBPix = (function () {
         ctx.fillStyle = 'rgba(255,255,255,.75)';
         ctx.fillRect(bx0 + ds * 4, wy + ds * 2, bw - ds * 8, ds);
         var dogY = by0 + (BOAT_DECK + 5) * ds - dh;                            // 갑판 뒤에 서서 몸만 보인다
-        drawDogAt(ctx, pose === 'run' ? 1 : pf, left, Math.round(a.x * k - dw / 2), dogY, ds, pose);
+        var s3b = Math.max(1, Math.round(ds * 40 / 24 * C3SIZE));   // 3D 초코 점 크기
+        c3drawOn(ctx, Math.round(a.x * k), dogY + dh, s3b, pose, pose === 'run' ? 1 : pf, pose === 'run' ? (left ? C3ANG / 2 : 0) : C3REST_AI, false);
         ctx.drawImage(BOATS[left ? 1 : 0], bx0, by0, bw, bh);
         drawBubble(Math.round(a.x * k), dogY + (pose === 'lie' ? 4 : -8) * ds, by0 + bh, k);
         return;
       }
       var dx = Math.round(a.x * k - dw / 2), dy = Math.round(a.y * k - dh + ds * 4);
-      // 발밑 그림자, 먼지
-      ctx.fillStyle = 'rgba(0,0,0,.25)';
-      ctx.fillRect(dx + ds * 6, Math.round(a.y * k + ds * 4), dw - ds * 14, ds * 2);
+      // 먼지 (그림자는 3D 초코가 타원으로 그린다)
       ctx.fillStyle = 'rgba(255,255,255,.85)';
       var back = a.dx < 0 ? dx + dw - ds * 4 : dx;
       if (pose === 'run' && (frame % 4 === 0 || running)) ctx.fillRect(back, Math.round(a.y * k + ds), ds * 3, ds * 3);
       if (pose === 'run' && (running || frame % 4 === 1)) ctx.fillRect(back + (a.dx < 0 ? ds * 4 : -ds * 4), Math.round(a.y * k) - ds * 2, ds * 2, ds * 2);
-      drawDogAt(ctx, pf, left, dx, dy, ds, pose);
-      drawBubble(Math.round(a.x * k), dy + (pose === 'lie' ? 4 : -8) * ds, dy + dh, k);   // 모자 자리까지 비워 둔다
+      // 3D 초코(맨몸): 달릴 때는 길 방향을 보고, 쉴 때는 비스듬한 정면
+      var s3 = Math.max(1, Math.round(ds * 40 / 24 * C3SIZE)), gy3 = Math.round(a.y * k + ds * 4);
+      c3drawOn(ctx, Math.round(a.x * k), gy3, s3, pose, pf, pose === 'run' ? c3angleIndex(a.dx, a.dy || 0) : C3REST_AI, true);
+      drawBubble(Math.round(a.x * k), gy3 - (pose === 'lie' ? 16 : 26) * s3, gy3, k);
     }
     /* 강아지 말풍선: 도트 테두리 흰 상자 + 강아지 쪽 꼬리. 대사는 7초마다 바뀐다.
        위에 자리가 없으면 강아지 아래에 띄운다. */
@@ -4851,7 +5147,7 @@ window.NBPix = (function () {
   var MEDAL_URLS = ['medal1', 'medal2', 'medal3'].map(function (k) {
     var a = []; for (var f = 0; f < DOG_FRAMES_N; f++) a.push(outfitCanvas(f, false, k, 'run').toDataURL()); return a;
   });
-  function rankFrames(r) { return MEDAL_URLS[r] || dogURLs; }
+  function rankFrames(r) { return MEDAL_URLS[r] || rankOutfitURLs; }
   function rankDog(i) {
     var fr = rankFrames(i), alt = i < 3 ? ['금', '은', '동'][i] + '메달 초코' : (i + 1) + '번째';
     return '<span class="p"><img class="rdog" data-r="' + i + '" src="' + (fr[i % fr.length] || '') + '" alt="' + alt + '"></span>';
